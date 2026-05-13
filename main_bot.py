@@ -192,7 +192,7 @@ async def restore_from_postgres():
             if pg_users:
                 for u in pg_users:
                     await sqlite_pool.execute(
-                        "INSERT OR REPLACE INTO users (user_id, username, nickname, balance, total_games, total_wins, total_bet, total_win_amount, free_spins, games_since_withdrawal, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),NOW())",
+                        "INSERT OR REPLACE INTO users (user_id, username, nickname, balance, total_games, total_wins, total_bet, total_win_amount, free_spins, games_since_withdrawal, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'),datetime('now'))",
                         (u["user_id"], u["username"], u["nickname"], float(u["balance"]),
                          u["total_games"] or 0, u["total_wins"] or 0,
                          float(u["total_bet"] or 0), float(u["total_win_amount"] or 0),
@@ -429,14 +429,22 @@ async def api_place_bet(request: Request) -> Response:
         
         # Расчёт
         if is_admin:
-            actual_bet = 0
+            actual_bet = bet_amount if bet_amount > 0 else 1  # Админ играет на введённую сумму
         elif use_free_spin:
             actual_bet = 0
         else:
             actual_bet = bet_amount
         
-        win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
-        new_balance = user["balance"] - actual_bet + win_amount
+        # Админам не списываем, но выигрыш начисляем
+        if is_admin:
+            win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
+            new_balance = user["balance"] + win_amount  # Не вычитаем ставку
+        elif use_free_spin:
+            win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
+            new_balance = user["balance"] + win_amount
+        else:
+            win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
+            new_balance = user["balance"] - actual_bet + win_amount
         
         # Транзакция — всё или ничего
         now = datetime.now().isoformat()
