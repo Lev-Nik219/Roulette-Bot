@@ -80,8 +80,8 @@ class Config:
     )
 
     # API
-    API_URL = "https://roulette-bot-xxxx.onrender.com"
-    FRONTEND_URL = "https://game-bar-web.vercel.app"
+    API_URL = "https://roulette-bot-8i8t.onrender.com"
+    FRONTEND_URL = "https://roulette-bot-six.vercel.app"
 
     # Webhook
     WEBHOOK_HOST = "0.0.0.0"
