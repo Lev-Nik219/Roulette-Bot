@@ -681,6 +681,11 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
                 )
             ],
             [
+                KeyboardButton(text="💳 Пополнить"),
+                KeyboardButton(text="💸 Вывести")
+            ],
+            [
+                KeyboardButton(text="💰 Баланс"),
                 KeyboardButton(text="📩 Поддержка")
             ]
         ],
@@ -1359,7 +1364,7 @@ async def cmd_start(message: Message):
 
     # Приветственное сообщение
     welcome_text = (
-        f"🎡 *Добро пожаловать в Roulette\\_Bot, {full_name}!*\n\n"
+        f"🎡 *Добро пожаловать в 𝑹𝒐𝒖𝒍𝒆𝒕𝒕𝒆, {full_name}!*\n\n"
         f"🆔 Ваш ID: `{user_id}`\n"
         f"💰 Баланс: {user['balance']:.2f}$\n"
         f"🎁 Бесплатных спинов: {user['free_spins']}\n\n"
@@ -1406,6 +1411,47 @@ async def show_balance(message: Message):
         f"⚠️ Вывод доступен после {config.MIN_GAMES_FOR_WITHDRAWAL} игр",
         parse_mode=ParseMode.MARKDOWN
     )
+
+@user_router.message(F.text == "💳 Пополнить")
+async def deposit_info(message: Message):
+    """Информация о пополнении"""
+    await message.answer(
+        "💳 *Пополнение баланса*\n\n"
+        "Для пополнения используйте CryptoPay (USDT):\n\n"
+        f"• Отправьте USDT на наш кошелёк\n"
+        f"• Укажите ваш ID: `{message.from_user.id}`\n"
+        f"• Баланс зачислится автоматически\n\n"
+        "🔗 Ссылка для пополнения: /crypto",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+@user_router.message(F.text == "💸 Вывести")
+async def withdraw_info(message: Message):
+    """Информация о выводе"""
+    user = await get_user(message.from_user.id)
+    if not user:
+        user = await create_user_if_not_exists(message.from_user.id, message.from_user.username)
+
+    games_needed = max(0, config.MIN_GAMES_FOR_WITHDRAWAL - user["games_since_withdrawal"])
+
+    if games_needed > 0:
+        await message.answer(
+            f"💸 *Вывод средств*\n\n"
+            f"⚠️ Вывод доступен после {config.MIN_GAMES_FOR_WITHDRAWAL} сыгранных игр\n"
+            f"🎮 Сыграно: {user['games_since_withdrawal']}\n"
+            f"⏳ Осталось: {games_needed} игр\n\n"
+            f"💰 Ваш баланс: {user['balance']:.2f}$",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    else:
+        await message.answer(
+            f"💸 *Вывод средств*\n\n"
+            f"✅ Вывод доступен!\n"
+            f"💰 Ваш баланс: {user['balance']:.2f}$\n\n"
+            f"Для вывода используйте Mini App или напишите в поддержку.",
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 
 @user_router.message(Command("cancel"))
