@@ -340,17 +340,6 @@ async def api_place_bet(request: Request) -> Response:
         logger.error(f"api_place_bet error: {e}")
         return json_response({"error": str(e)}, status=500)
 
-async def api_get_rooms(request: Request) -> Response:
-    rooms_list = []
-    for rid, room in multiplayer_rooms.items():
-        if room["status"] == "waiting":
-            rooms_list.append({
-                "room_id": rid, "players_count": len(room["players"]),
-                "bank": room["bank"],
-                "time_left": max(0, config.MULTIPLAYER_JOIN_TIMEOUT - int(time.time() - room["timer_start"]))
-            })
-    return json_response({"rooms": rooms_list})
-
 async def api_withdraw_request(request: Request) -> Response:
     try:
         data = await request.json()
@@ -371,7 +360,8 @@ async def api_withdraw_request(request: Request) -> Response:
             except: pass
         return json_response({"success": True, "new_balance": new_balance})
     except Exception as e: return json_response({"error": str(e)}, status=500)
-    # ═══════════════════════════════════════
+
+# ═══════════════════════════════════════
 # FSM STATES
 # ═══════════════════════════════════════
 
@@ -687,7 +677,8 @@ async def reply_command(message: Message):
         await message.answer(f"✅ Ответ отправлен пользователю `{target_id}`", parse_mode=ParseMode.MARKDOWN)
     except ValueError: await message.answer("❌ Неверный ID пользователя")
     except Exception as e: await message.answer(f"❌ Ошибка отправки: {e}")
-    # ═══════════════════════════════════════
+
+# ═══════════════════════════════════════
 # USER ROUTER (ТРЕТИЙ)
 # ═══════════════════════════════════════
 
@@ -779,34 +770,151 @@ async def play_roulette_button(message: Message):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎡 Открыть рулетку", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single"))]]))
 
 # ═══════════════════════════════════════
-# WEBSOCKET SERVER
+# WEBSOCKET SERVER FOR MULTIPLAYER
 # ═══════════════════════════════════════
 
 ws_connections: Dict[int, web.WebSocketResponse] = {}
-multiplayer_rooms: Dict[str, Dict[str, Any]] = {}
-room_players: Dict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
 
-def generate_room_id() -> str:
-    return secrets.token_hex(4).upper()
+# Состояние мультиплеерного раунда
+mp_round = {
+    "players": {},  # user_id -> {bet, nickname, color}
+    "bank": 0.0,
+    "timer": 30,
+    "status": "waiting",  # waiting | spinning | finished
+    "timer_task": None,
+    "round_start": 0.0
+}
 
-def get_player_color(player_index: int) -> str:
-    colors = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#FF8C00","#F7DC6F","#BB8FCE"]
-    return colors[player_index % len(colors)]
+MP_COLORS = ["#FF6B6B","#4ECDC4","#FFEAA7","#DDA0DD","#45B7D1","#96CEB4","#FF8C00","#F7DC6F"]
 
-async def broadcast_to_room(room_id: str, message: Dict[str, Any], exclude_user: int = None):
-    if room_id in room_players:
-        for uid in room_players[room_id]:
-            if uid != exclude_user and uid in ws_connections:
-                ws = ws_connections[uid]
-                if not ws.closed:
-                    try: await ws.send_json(message)
-                    except Exception as e: logger.error(f"Broadcast error: {e}")
+def get_mp_color(index: int) -> str:
+    return MP_COLORS[index % len(MP_COLORS)]
+
+async def broadcast_mp(message: Dict[str, Any], exclude_user: int = None):
+    for uid, ws in list(ws_connections.items()):
+        if uid != exclude_user and not ws.closed:
+            try: await ws.send_json(message)
+            except: pass
+
+def build_mp_state(my_user_id: int = None) -> Dict:
+    players_list = []
+    my_bet = 0.0
+    for uid, pdata in mp_round["players"].items():
+        players_list.append({
+            "user_id": uid,
+            "nickname": pdata["nickname"],
+            "bet": pdata["bet"],
+            "color": pdata["color"]
+        })
+        if my_user_id and uid == my_user_id:
+            my_bet = pdata["bet"]
+
+    return {
+        "type": "mp_state",
+        "players": players_list,
+        "bank": mp_round["bank"],
+        "timer": mp_round["timer"],
+        "my_bet": my_bet,
+        "round_active": mp_round["status"] == "waiting"
+    }
+
+async def mp_timer_task():
+    """Таймер обратного отсчёта"""
+    mp_round["round_start"] = time.time()
+    mp_round["timer"] = config.MULTIPLAYER_JOIN_TIMEOUT
+
+    while mp_round["timer"] > 0 and mp_round["status"] == "waiting":
+        await asyncio.sleep(1)
+        mp_round["timer"] -= 1
+
+        # Отправляем таймер каждые 5 секунд и на последних 5 секундах
+        if mp_round["timer"] % 5 == 0 or mp_round["timer"] <= 5:
+            await broadcast_mp({"type": "mp_timer", "time": mp_round["timer"]})
+
+        # Если кто-то перебил ставку на последних секундах — добавляем 15с
+        # (это проверяется в mp_place_bet / mp_raise_bet)
+
+    # Таймер истёк — запускаем игру
+    if mp_round["status"] == "waiting" and len(mp_round["players"]) >= config.MIN_PLAYERS_MULTIPLAYER:
+        await start_mp_game()
+
+async def start_mp_game():
+    """Запуск мультиплеерной игры"""
+    if len(mp_round["players"]) < 2:
+        # Отменяем — возвращаем ставки
+        for uid, pdata in mp_round["players"].items():
+            user = await get_user(uid)
+            if user:
+                await update_balance_both(uid, user["balance"] + pdata["bet"])
+        mp_round["players"] = {}
+        mp_round["bank"] = 0.0
+        mp_round["status"] = "waiting"
+        await broadcast_mp({"type": "mp_round_reset"})
+        return
+
+    mp_round["status"] = "spinning"
+    await broadcast_mp({"type": "mp_state", "players": get_mp_players_list(), "bank": mp_round["bank"], "timer": 0, "round_active": False})
+
+    # Выбираем победителя (пропорционально ставкам)
+    players_list = list(mp_round["players"].items())
+    total = mp_round["bank"]
+    weights = [pdata["bet"] / total for _, pdata in players_list]
+
+    winner_id, winner_data = random.choices(players_list, weights=weights, k=1)[0]
+
+    # Угол для анимации
+    winner_angle = random.random() * 360
+
+    await broadcast_mp({
+        "type": "mp_spinning",
+        "winner_angle": winner_angle
+    })
+
+    await asyncio.sleep(5)  # Ждём анимацию
+
+    # Расчёт выигрыша
+    commission = mp_round["bank"] * config.PLATFORM_COMMISSION
+    win_amount = mp_round["bank"] - commission
+
+    # Начисляем победителю
+    winner_user = await get_user(winner_id)
+    if winner_user:
+        await update_balance_both(winner_id, winner_user["balance"] + win_amount)
+
+    # Сохраняем в БД
+    room_id = secrets.token_hex(4).upper()
+    await sqlite_pool.execute(
+        "INSERT INTO multiplayer_rooms (room_id, status, bank, winner_id, commission, players_count) VALUES (?,'finished',?,?,?,?)",
+        (room_id, mp_round["bank"], winner_id, commission, len(mp_round["players"]))
+    )
+    await sqlite_pool.commit()
+
+    # Уведомляем о результате
+    await broadcast_mp({
+        "type": "mp_result",
+        "winner_id": winner_id,
+        "winner_nickname": winner_data["nickname"],
+        "win_amount": win_amount,
+        "bank": mp_round["bank"],
+        "commission": commission
+    })
+
+    # Сбрасываем раунд
+    await asyncio.sleep(3)
+    mp_round["players"] = {}
+    mp_round["bank"] = 0.0
+    mp_round["status"] = "waiting"
+    mp_round["timer"] = config.MULTIPLAYER_JOIN_TIMEOUT
+    await broadcast_mp({"type": "mp_round_reset"})
+
+def get_mp_players_list() -> List[Dict]:
+    return [{"user_id": uid, "nickname": p["nickname"], "bet": p["bet"], "color": p["color"]}
+            for uid, p in mp_round["players"].items()]
 
 async def handle_websocket(request: Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     user_id = None
-    current_room = None
 
     try:
         async for msg in ws:
@@ -819,186 +927,113 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         user_id = int(data.get("user_id", 0))
                         if user_id:
                             if user_id in ws_connections and not ws_connections[user_id].closed:
-                                try: await ws_connections[user_id].close(code=1000, message="New connection")
+                                try: await ws_connections[user_id].close(code=1000)
                                 except: pass
                             ws_connections[user_id] = ws
-                            await ws.send_json({"type":"connected","user_id":user_id,"message":"Connected"})
+                            await ws.send_json({"type": "connected", "user_id": user_id})
 
-                    elif action == "create_room":
+                    elif action == "mp_join":
                         user_id = int(data.get("user_id", 0))
-                        bet_amount = float(data.get("bet_amount", 0))
+                        await ws.send_json(build_mp_state(my_user_id=user_id))
+
+                    elif action == "mp_place_bet":
+                        user_id = int(data.get("user_id", 0))
+                        amount = float(data.get("amount", 0))
+                        nickname = str(data.get("nickname", f"Player_{user_id}"))[:15]
+
+                        if mp_round["status"] != "waiting":
+                            await ws.send_json({"type": "error", "message": "Раунд уже идёт"})
+                            continue
+                        if amount < 1:
+                            await ws.send_json({"type": "error", "message": "Минимум 1$"})
+                            continue
+
                         user = await get_user(user_id)
-                        if not user or user["balance"] < bet_amount:
-                            await ws.send_json({"type":"error","message":"Недостаточно средств"}); continue
-                        room_id = generate_room_id()
-                        color = get_player_color(len(multiplayer_rooms))
-                        multiplayer_rooms[room_id] = {"room_id":room_id,"status":"waiting","bank":bet_amount,"players":[],"created_at":time.time(),"timer_start":time.time()}
-                        room_players[room_id][user_id] = {"user_id":user_id,"username":user["username"] or str(user_id),"nickname":user["nickname"] or user["username"] or f"Player_{user_id}","bet_amount":bet_amount,"color":color,"avatar":data.get("avatar","🎲")}
-                        multiplayer_rooms[room_id]["players"].append(user_id)
-                        current_room = room_id
-                        new_balance = user["balance"] - bet_amount
-                        await update_balance_both(user_id, new_balance)
-                        await ws.send_json({"type":"room_created","room_id":room_id,"players":get_room_players_list(room_id),"bank":bet_amount,"timer":config.MULTIPLAYER_JOIN_TIMEOUT})
+                        if not user or user["balance"] < amount:
+                            await ws.send_json({"type": "error", "message": "Недостаточно средств"})
+                            continue
 
-                    elif action == "join_room":
+                        # Списываем ставку
+                        await update_balance_both(user_id, user["balance"] - amount)
+
+                        # Добавляем игрока
+                        color_idx = len(mp_round["players"])
+                        mp_round["players"][user_id] = {
+                            "bet": amount,
+                            "nickname": nickname,
+                            "color": get_mp_color(color_idx)
+                        }
+                        mp_round["bank"] += amount
+
+                        # Уведомляем всех
+                        state_msg = build_mp_state(my_user_id=None)
+                        state_msg["type"] = "mp_bet_placed"
+                        await broadcast_mp(state_msg)
+
+                        # Запускаем таймер если первый игрок
+                        if len(mp_round["players"]) == 1:
+                            if mp_round["timer_task"]:
+                                mp_round["timer_task"].cancel()
+                            mp_round["timer_task"] = asyncio.create_task(mp_timer_task())
+
+                        # Отправляем обновлённое состояние
+                        await ws.send_json(build_mp_state(my_user_id=user_id))
+
+                    elif action == "mp_raise_bet":
                         user_id = int(data.get("user_id", 0))
-                        room_id = data.get("room_id")
-                        bet_amount = float(data.get("bet_amount", 0))
-                        if room_id not in multiplayer_rooms:
-                            await ws.send_json({"type":"error","message":"Комната не найдена"}); continue
-                        room = multiplayer_rooms[room_id]
-                        if room["status"] != "waiting":
-                            await ws.send_json({"type":"error","message":"Игра уже началась"}); continue
-                        if len(room["players"]) >= config.MAX_PLAYERS_MULTIPLAYER:
-                            await ws.send_json({"type":"error","message":"Комната заполнена"}); continue
+                        extra = float(data.get("amount", 0))
+
+                        if user_id not in mp_round["players"]:
+                            await ws.send_json({"type": "error", "message": "Вы не в игре"})
+                            continue
+                        if mp_round["status"] != "waiting":
+                            await ws.send_json({"type": "error", "message": "Раунд уже идёт"})
+                            continue
+
                         user = await get_user(user_id)
-                        if not user or user["balance"] < bet_amount:
-                            await ws.send_json({"type":"error","message":"Недостаточно средств"}); continue
-                        color = get_player_color(len(room["players"]))
-                        room_players[room_id][user_id] = {"user_id":user_id,"username":user["username"] or str(user_id),"nickname":user["nickname"] or user["username"] or f"Player_{user_id}","bet_amount":bet_amount,"color":color,"avatar":data.get("avatar","🎲")}
-                        room["players"].append(user_id)
-                        room["bank"] += bet_amount
-                        current_room = room_id
-                        new_balance = user["balance"] - bet_amount
-                        await update_balance_both(user_id, new_balance)
-                        await ws.send_json({"type":"joined_room","room_id":room_id,"players":get_room_players_list(room_id),"bank":room["bank"],"timer":max(0, config.MULTIPLAYER_JOIN_TIMEOUT - int(time.time() - room["timer_start"]))})
-                        await broadcast_to_room(room_id, {"type":"player_joined","players":get_room_players_list(room_id),"bank":room["bank"],"players_count":len(room["players"])}, exclude_user=user_id)
+                        if not user or user["balance"] < extra:
+                            await ws.send_json({"type": "error", "message": "Недостаточно средств"})
+                            continue
 
-                    elif action == "leave_room":
-                        user_id = int(data.get("user_id", 0))
-                        room_id = data.get("room_id")
-                        if room_id in room_players and user_id in room_players[room_id]:
-                            await remove_player_from_room(room_id, user_id, "left")
-                            current_room = None
-                            await ws.send_json({"type":"left_room","message":"Вы вышли из комнаты"})
+                        # Списываем дополнительную ставку
+                        await update_balance_both(user_id, user["balance"] - extra)
+                        mp_round["players"][user_id]["bet"] += extra
+                        mp_round["bank"] += extra
 
-                    elif action == "start_game":
-                        user_id = int(data.get("user_id", 0))
-                        room_id = data.get("room_id")
-                        if room_id not in multiplayer_rooms: continue
-                        room = multiplayer_rooms[room_id]
-                        if room["players"][0] != user_id:
-                            await ws.send_json({"type":"error","message":"Только создатель может запустить игру"}); continue
-                        if len(room["players"]) < config.MIN_PLAYERS_MULTIPLAYER:
-                            await ws.send_json({"type":"error","message":f"Минимум {config.MIN_PLAYERS_MULTIPLAYER} игрока"}); continue
-                        asyncio.create_task(run_multiplayer_game(room_id))
+                        # Добавляем 15 секунд если таймер < 10
+                        if mp_round["timer"] < 10:
+                            mp_round["timer"] += 15
 
-                    elif action == "get_rooms":
-                        rooms_list = []
-                        for rid, room in multiplayer_rooms.items():
-                            if room["status"] == "waiting":
-                                rooms_list.append({"room_id":rid,"players_count":len(room["players"]),"bank":room["bank"],"time_left":max(0, config.MULTIPLAYER_JOIN_TIMEOUT - int(time.time() - room["timer_start"]))})
-                        await ws.send_json({"type":"rooms_list","rooms":rooms_list})
+                        state_msg = build_mp_state(my_user_id=None)
+                        state_msg["type"] = "mp_bet_placed"
+                        await broadcast_mp(state_msg)
+                        await ws.send_json(build_mp_state(my_user_id=user_id))
 
                     elif action == "ping":
-                        await ws.send_json({"type":"pong"})
+                        await ws.send_json({"type": "pong"})
 
                 except json.JSONDecodeError:
-                    await ws.send_json({"type":"error","message":"Invalid JSON"})
+                    await ws.send_json({"type": "error", "message": "Invalid JSON"})
                 except Exception as e:
                     logger.error(f"WS error: {e}")
-                    await ws.send_json({"type":"error","message":str(e)})
 
     except Exception as e:
         logger.error(f"WS handler error: {e}")
     finally:
         if user_id and user_id in ws_connections:
             del ws_connections[user_id]
-        if current_room and user_id:
-            await remove_player_from_room(current_room, user_id, "disconnected")
-        logger.info(f"WS user {user_id} disconnected")
+        # Если игрок отключился — удаляем из раунда и возвращаем ставку
+        if user_id and user_id in mp_round["players"]:
+            bet = mp_round["players"][user_id]["bet"]
+            user = await get_user(user_id)
+            if user:
+                await update_balance_both(user_id, user["balance"] + bet)
+            del mp_round["players"][user_id]
+            mp_round["bank"] -= bet
+            if mp_round["bank"] < 0: mp_round["bank"] = 0
+            await broadcast_mp(build_mp_state())
 
     return ws
-
-def get_room_players_list(room_id: str) -> List[Dict]:
-    players = []
-    if room_id in room_players:
-        for uid, pdata in room_players[room_id].items():
-            players.append({"user_id":uid,"nickname":pdata["nickname"],"bet_amount":pdata["bet_amount"],"color":pdata["color"],"avatar":pdata.get("avatar","🎲")})
-    return players
-
-async def remove_player_from_room(room_id: str, user_id: int, reason: str):
-    if room_id not in room_players or user_id not in room_players[room_id]: return
-    player_data = room_players[room_id][user_id]
-    bet_amount = player_data["bet_amount"]
-    room = multiplayer_rooms.get(room_id)
-    if room and room["status"] == "waiting":
-        user = await get_user(user_id)
-        if user:
-            new_balance = user["balance"] + bet_amount
-            await update_balance_both(user_id, new_balance)
-    del room_players[room_id][user_id]
-    if room:
-        if user_id in room["players"]: room["players"].remove(user_id)
-        room["bank"] -= bet_amount
-        if len(room["players"]) == 0:
-            del multiplayer_rooms[room_id]
-            if room_id in room_players: del room_players[room_id]
-        else:
-            await broadcast_to_room(room_id, {"type":"player_left","user_id":user_id,"nickname":player_data["nickname"],"players":get_room_players_list(room_id),"bank":room["bank"],"players_count":len(room["players"])})
-
-async def run_multiplayer_game(room_id: str):
-    if room_id not in multiplayer_rooms: return
-    room = multiplayer_rooms[room_id]
-    room["status"] = "spinning"
-    await broadcast_to_room(room_id, {"type":"game_starting","message":"Игра начинается!","players":get_room_players_list(room_id),"bank":room["bank"]})
-    await asyncio.sleep(5)
-
-    players_in_room = room["players"].copy()
-    if not players_in_room: room["status"] = "finished"; return
-
-    weights = []
-    for uid in players_in_room:
-        if uid in room_players[room_id]: weights.append(room_players[room_id][uid]["bet_amount"])
-    total_weight = sum(weights)
-    if total_weight <= 0: winner_id = random.choice(players_in_room)
-    else: winner_id = random.choices(players_in_room, weights=[w/total_weight for w in weights], k=1)[0]
-
-    commission = room["bank"] * config.PLATFORM_COMMISSION
-    win_amount = room["bank"] - commission
-
-    winner_user = await get_user(winner_id)
-    if winner_user:
-        new_balance = winner_user["balance"] + win_amount
-        await update_balance_both(winner_id, new_balance)
-
-    await sqlite_pool.execute("UPDATE multiplayer_rooms SET status='finished', winner_id=?, commission=?, finished_at=CURRENT_TIMESTAMP WHERE room_id=?", (winner_id, commission, room_id))
-    await sqlite_pool.commit()
-
-    room["status"] = "finished"; room["winner_id"] = winner_id; room["commission"] = commission
-    winner_nickname = room_players[room_id].get(winner_id, {}).get("nickname", "Unknown")
-    winner_color = room_players[room_id].get(winner_id, {}).get("color", "#FFD700")
-
-    await broadcast_to_room(room_id, {"type":"game_result","winner_id":winner_id,"winner_nickname":winner_nickname,"winner_color":winner_color,"win_amount":win_amount,"bank":room["bank"],"commission":commission,"players":get_room_players_list(room_id)})
-
-    await asyncio.sleep(10)
-    if room_id in multiplayer_rooms:
-        for uid in list(room_players.get(room_id, {}).keys()):
-            if uid in ws_connections and not ws_connections[uid].closed:
-                try: await ws_connections[uid].send_json({"type":"room_closed","message":"Игра завершена"})
-                except: pass
-        del multiplayer_rooms[room_id]
-        if room_id in room_players: del room_players[room_id]
-
-async def multiplayer_timer_checker():
-    while True:
-        await asyncio.sleep(1)
-        now = time.time()
-        rooms_to_start = []
-        for room_id, room in list(multiplayer_rooms.items()):
-            if room["status"] != "waiting": continue
-            time_left = config.MULTIPLAYER_JOIN_TIMEOUT - (now - room["timer_start"])
-            if time_left > 0 and int(time_left) % 5 == 0:
-                await broadcast_to_room(room_id, {"type":"timer_update","time_left":int(time_left)})
-            if time_left <= 0:
-                if len(room["players"]) >= config.MIN_PLAYERS_MULTIPLAYER: rooms_to_start.append(room_id)
-                else:
-                    await broadcast_to_room(room_id, {"type":"game_cancelled","message":"Недостаточно игроков. Ставки возвращены."})
-                    for uid in list(room_players.get(room_id, {}).keys()):
-                        await remove_player_from_room(room_id, uid, "timeout")
-                    if room_id in multiplayer_rooms: del multiplayer_rooms[room_id]
-        for room_id in rooms_to_start:
-            asyncio.create_task(run_multiplayer_game(room_id))
 
 # ═══════════════════════════════════════
 # BOT SETUP
@@ -1015,7 +1050,6 @@ async def on_startup():
     logger.info("🚀 Starting LN Roulette Bot...")
     await init_sqlite()
     await init_postgres()
-    asyncio.create_task(multiplayer_timer_checker())
 
     async def keep_alive():
         while True:
@@ -1037,8 +1071,7 @@ async def on_shutdown():
             try: await ws.close(code=1001, message="Server shutting down")
             except: pass
     ws_connections.clear()
-    multiplayer_rooms.clear()
-    room_players.clear()
+    mp_round["players"] = {}
     await bot.delete_webhook()
     await bot.session.close()
     await close_databases()
@@ -1065,7 +1098,6 @@ def create_app() -> web.Application:
     app.router.add_get("/health", health_handler)
     app.router.add_post("/api/user/get", api_get_user)
     app.router.add_post("/api/game/place_bet", api_place_bet)
-    app.router.add_post("/api/multiplayer/rooms", api_get_rooms)
     app.router.add_post("/api/user/withdraw", api_withdraw_request)
     app.router.add_get("/ws", handle_websocket)
 
