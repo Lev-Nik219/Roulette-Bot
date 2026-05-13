@@ -373,19 +373,25 @@ async def api_get_user(request: Request) -> Response:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         
-        init_data = data.get("init_data", "")
-        if init_data:
-            validated = validate_telegram_init_data(init_data)
-            if validated and validated["id"] != user_id:
-                return json_response({"error": "Invalid init data"}, status=403)
-        
         if not user_id: return json_response({"error": "user_id required"}, status=400)
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
         
+        # СНАЧАЛА проверяем есть ли пользователь
         user = await get_user(user_id)
+        
+        # Если нет — создаём
         if not user:
+            # Сбрасываем кеш перед созданием
+            invalidate_cache(user_id)
             user = await create_user_if_not_exists(user_id)
+        
+        # Принудительно перечитываем из БД (минуя кеш)
+        async with sqlite_pool.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                user = dict(row)
+                set_cached_user(user_id, user)
         
         logger.info(f"📡 API get_user: user_id={user_id}, balance={user['balance']:.2f}$")
         
@@ -395,7 +401,6 @@ async def api_get_user(request: Request) -> Response:
             "free_spins": user["free_spins"], "games_since_withdrawal": user["games_since_withdrawal"]
         })
     except Exception as e: return json_response({"error": str(e)}, status=500)
-
 async def api_place_bet(request: Request) -> Response:
     """
     ИСПРАВЛЕНИЕ 2: Транзакционность.
