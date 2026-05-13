@@ -238,8 +238,10 @@
             if (uid) {
                 user = { id: parseInt(uid), username: 'player', firstName: 'Player' };
             } else {
-                console.warn('⚠️ Test mode');
-                user = { id: 1167503795, username: 'test', firstName: 'Tester' };
+                // Генерируем случайный ID для теста
+                const randomId = Math.floor(Math.random() * 1000000) + 1;
+                console.warn('⚠️ Test mode — random ID:', randomId);
+                user = { id: randomId, username: 'guest_' + randomId, firstName: 'Guest' };
             }
         }
 
@@ -695,16 +697,5 @@
         setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
         window.addEventListener('beforeunload',function(){if(ws)ws.close()});
     </script>
-    <script>
-    // Кнопка "Поделиться" в меню Telegram WebApp
-    if (tg) {
-        tg.MainButton.setText('📤 Поделиться');
-        tg.MainButton.show();
-        tg.MainButton.onClick(function() {
-            const shareText = '🎡 Roulette Bot — играй и выигрывай!\n💰 Европейская рулетка + Мультиплеер\n👉 @lnRoulette_bot';
-            tg.openLink('https://t.me/share/url?url=https://t.me/lnRoulette_bot&text=' + encodeURIComponent(shareText));
-        });
-    }
-</script>
 </body>
 </html>
