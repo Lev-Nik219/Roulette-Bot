@@ -442,7 +442,7 @@
                 updateUI();
                 if(result.is_win){showCenterBanner('🎉 ВЫИГРЫШ! +'+result.win_amount.toFixed(2)+'$','win');spawnConfetti();playWinSound();}
                 else{showCenterBanner('😞 ПРОИГРЫШ -'+amount.toFixed(2)+'$','lose');playLoseSound();}
-                var cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
+                var cn={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
                 $('#resultNum').textContent=result.number;
                 $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
                 $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
