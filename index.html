@@ -323,10 +323,10 @@
             state.mode=b.dataset.tab;
             if(b.dataset.tab==='multiplayer'){
                 connectWS();
+                switchMPTab('lobby');
                 setTimeout(function(){
-                    switchMPTab('lobby');
                     sendWS({action:'mp_get_rooms'});
-                },500);
+                },800);
             }
             vibrate();
         })});
@@ -430,7 +430,6 @@
             if(tab==='lobby'){
                 $('#mpLobbyArea').classList.remove('hidden');
                 $('#mpRoomArea').classList.add('hidden');
-                sendWS({action:'mp_get_rooms'});
             }else{
                 $('#mpLobbyArea').classList.add('hidden');
                 $('#mpRoomArea').classList.remove('hidden');
