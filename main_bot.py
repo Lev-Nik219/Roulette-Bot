@@ -2221,6 +2221,9 @@ def create_app() -> web.Application:
 
     # Mount API sub-app
     app.add_subapp('/api/', api_app)
+    
+    # Отдельный health-check на корневом уровне
+    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "timestamp": datetime.now().isoformat()}))
 
     # Startup/shutdown
     app.on_startup.append(lambda app: on_startup())
