@@ -673,20 +673,6 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
                     text="🎡 Играть в рулетку",
                     web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single")
                 )
-            ],
-            [
-                KeyboardButton(
-                    text="👥 Мультиплеер",
-                    web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=multiplayer")
-                )
-            ],
-            [
-                KeyboardButton(text="💰 Баланс"),
-                KeyboardButton(text="📊 Статистика")
-            ],
-            [
-                KeyboardButton(text="🎁 Бесплатные спины"),
-                KeyboardButton(text="📩 Поддержка")
             ]
         ],
         resize_keyboard=True,
@@ -1415,54 +1401,6 @@ async def show_balance(message: Message):
     )
 
 
-@user_router.message(F.text == "📊 Статистика")
-async def show_statistics(message: Message):
-    """Показать статистику игрока"""
-    user = await get_user(message.from_user.id)
-    if not user:
-        user = await create_user_if_not_exists(message.from_user.id,
-                                                message.from_user.username)
-
-    win_rate = (user['total_wins'] / user['total_games'] * 100) if user[
-        'total_games'] > 0 else 0
-    games_needed = max(0, config.MIN_GAMES_FOR_WITHDRAWAL - user[
-        'games_since_withdrawal'])
-
-    await message.answer(
-        f"📊 *Ваша статистика*\n\n"
-        f"🎮 Всего игр: {user['total_games']}\n"
-        f"🏆 Побед: {user['total_wins']}\n"
-        f"📈 Процент побед: {win_rate:.1f}%\n"
-        f"💵 Всего ставок: {user['total_bet']:.2f}$\n"
-        f"💎 Всего выиграно: {user['total_win_amount']:.2f}$\n"
-        f"🎁 Бесплатных спинов: {user['free_spins']}\n\n"
-        f"💳 Вывод средств:\n"
-        f"{'✅ Доступен' if games_needed == 0 else f'⏳ Ещё {games_needed} игр'}",
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-
-@user_router.message(F.text == "🎁 Бесплатные спины")
-async def show_free_spins(message: Message):
-    """Показать бесплатные спины"""
-    user = await get_user(message.from_user.id)
-    if not user:
-        user = await create_user_if_not_exists(message.from_user.id,
-                                                message.from_user.username)
-
-    games_to_next = config.FREE_SPIN_EVERY - (user['total_games'] % config.FREE_SPIN_EVERY)
-
-    await message.answer(
-        f"🎁 *Бесплатные спины*\n\n"
-        f"🎯 Доступно: {user['free_spins']}\n"
-        f"📊 Каждые {config.FREE_SPIN_EVERY} игр — 1 бесплатный спин\n"
-        f"⏳ До следующего: {games_to_next} игр\n\n"
-        f"🎡 Используйте их в одиночной рулетке!\n"
-        f"Ставка на красное/чёрное/чёт/нечет — выплата ×2",
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-
 @user_router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext):
     """Отмена текущего действия"""
@@ -1491,26 +1429,6 @@ async def play_roulette_button(message: Message):
             [InlineKeyboardButton(
                 text="🎡 Открыть рулетку",
                 web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single")
-            )]
-        ])
-    )
-
-
-@user_router.message(F.text == "👥 Мультиплеер")
-async def multiplayer_button(message: Message):
-    """Кнопка мультиплеера"""
-    await message.answer(
-        "👥 *Мультиплеерная рулетка*\n\n"
-        "Играйте против других игроков!\n"
-        "• Минимум 2 игрока\n"
-        "• Максимум 6 игроков\n"
-        "• Победитель забирает 90% банка\n\n"
-        "Открывается Mini App...",
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text="👥 Открыть мультиплеер",
-                web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=multiplayer")
             )]
         ])
     )
