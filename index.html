@@ -8,6 +8,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+        :root{--bg-primary:#1a1a2e;--bg-secondary:#16213e;--accent:#f7971e;--accent2:#ffd200;--win:#4CAF50;--lose:#ff6b6b;--card-bg:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.08);--shadow-3d:0 8px 32px rgba(0,0,0,0.4),0 2px 8px rgba(0,0,0,0.3);--shadow-btn:0 6px 20px rgba(247,151,30,0.4),inset 0 1px 0 rgba(255,255,255,0.2)}
         @keyframes bgPulse{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
         @keyframes popIn{0%{transform:scale(0)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
@@ -62,25 +63,11 @@
 
         .game-area{background:rgba(0,0,0,0.3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:24px;padding:20px;margin-bottom:16px;text-align:center;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 40px rgba(0,0,0,0.5)}
 
-        /* WHEEL - яркий */
+        /* WHEEL */
         .roulette-wheel-container{position:relative;width:280px;height:280px;margin:20px auto;cursor:pointer;animation:wheelGlow 2s ease-in-out infinite}
         .roulette-wheel-container:active{transform:scale(0.98)}
         .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:#2a1500;box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 30px rgba(0,0,0,0.4);position:relative;overflow:hidden}
-        .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);
-            background:conic-gradient(from 0deg,
-                #2d8a2d 0deg 9.73deg,#222 9.73deg 19.46deg,#2d8a2d 19.46deg 29.19deg,#222 29.19deg 38.92deg,
-                #2d8a2d 38.92deg 48.65deg,#222 48.65deg 58.38deg,#2d8a2d 58.38deg 68.11deg,#222 68.11deg 77.84deg,
-                #2d8a2d 77.84deg 87.57deg,#222 87.57deg 97.30deg,#2d8a2d 97.30deg 107.03deg,#222 107.03deg 116.76deg,
-                #2d8a2d 116.76deg 126.49deg,#222 126.49deg 136.22deg,#2d8a2d 136.22deg 145.95deg,#222 145.95deg 155.68deg,
-                #2d8a2d 155.68deg 165.41deg,#222 165.41deg 175.14deg,#2d8a2d 175.14deg 184.87deg,#222 184.87deg 194.60deg,
-                #ffd700 194.60deg 204.33deg,
-                #222 204.33deg 214.06deg,#2d8a2d 214.06deg 223.79deg,#222 223.79deg 233.52deg,
-                #2d8a2d 233.52deg 243.25deg,#222 243.25deg 252.98deg,#2d8a2d 252.98deg 262.71deg,
-                #222 262.71deg 272.44deg,#2d8a2d 272.44deg 282.17deg,#222 282.17deg 291.90deg,
-                #2d8a2d 291.90deg 301.63deg,#222 301.63deg 311.36deg,#2d8a2d 311.36deg 321.09deg,
-                #222 321.09deg 330.82deg,#2d8a2d 330.82deg 340.55deg,#222 340.55deg 350.28deg,
-                #2d8a2d 350.28deg 360deg);
-            z-index:1}
+        .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:1}
         .roulette-ball{position:absolute;width:14px;height:14px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-7px;margin-top:-124px;box-shadow:0 0 12px rgba(255,255,255,0.8);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5}
         .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#a08060,#6d4c30);border-radius:50%;border:3px solid #4a3020;z-index:4}
         .roulette-result-num{font-size:44px;font-weight:800;min-height:55px;margin:6px 0}
@@ -102,9 +89,8 @@
 
         .confetti{position:fixed;pointer-events:none;z-index:250;animation:confetti 2s ease-out forwards}
 
-        .center-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:linear-gradient(180deg,rgba(0,0,0,0.95),rgba(15,25,15,0.95));padding:24px 36px;border-radius:24px;z-index:200;text-align:center;font-weight:800;font-size:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.8);pointer-events:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+        .center-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:linear-gradient(180deg,rgba(0,0,0,0.95),rgba(15,25,15,0.95));padding:24px 36px;border-radius:24px;z-index:200;text-align:center;font-weight:800;font-size:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.8),0 0 60px rgba(76,175,80,0.1);pointer-events:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
         .center-banner.show{animation:bannerIn 0.5s cubic-bezier(0.4,0,0.2,1) forwards}
-        .center-banner.hide{animation:bannerOut 0.4s ease forwards}
         .center-banner.win{color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.6)}
         .center-banner.lose{color:#ff6b6b}
 
@@ -286,6 +272,33 @@
         function toast(msg){const e=document.querySelector('.toast');if(e)e.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000)}
         function vibrate(ms){ms=ms||12;if(navigator.vibrate)navigator.vibrate(ms)}
 
+        // ═══════════════════════════════════════
+        // ROULETTE RING BUILDER
+        // ═══════════════════════════════════════
+        var rNumbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+        var reds=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+
+        function buildRouletteRing(){
+            var ring=$('#rouletteRing');
+            var slices=[];
+            rNumbers.forEach(function(num,i){
+                var color=num===0?'#27ae60':reds.includes(num)?'#e74c3c':'#2c3e50';
+                slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg');
+            });
+            ring.style.background='conic-gradient('+slices.join(',')+')';
+        }
+        buildRouletteRing();
+
+        // ═══════════════════════════════════════
+        // BANNER SYSTEM
+        // ═══════════════════════════════════════
+        function showCenterBanner(text,type){
+            var b=$('#centerBanner');
+            b.innerHTML=text;b.className='center-banner '+type+' show';
+            clearTimeout(b._timeout);
+            b._timeout=setTimeout(function(){b.className='center-banner '+type},2200);
+        }
+
         // Tabs
         $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');state.mode=b.dataset.tab;if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}vibrate()})});
 
@@ -297,7 +310,7 @@
         // Spin on wheel click
         $('#wheelClickArea').addEventListener('click',async function(){
             if(state.isSpinning)return;
-            if(!state.selectedBet){toast('Выберите ставку!');return}
+            if(!state.selectedBet){showCenterBanner('❌ Сделайте ставку!','lose');return}
             var useFree=$('#freeSpinToggle').classList.contains('checked');
             var amount=parseFloat($('#betAmount').value)||0;
             if(!useFree&&amount<=0){toast('Введите сумму!');return}
@@ -308,6 +321,7 @@
             vibrate(30);
             try{
                 var result=await api('/api/game/place_bet',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
+                buildRouletteRing();
                 await spinWheel(result.number);
                 state.balance=result.new_balance;
                 state.freeSpins=result.free_spins;
@@ -315,7 +329,17 @@
                 if(result.is_win)state.totalWins++;
                 state.gamesSinceWithdrawal=state.totalGames;
                 updateUI();
-                showBanner(result);
+                if(result.is_win){
+                    showCenterBanner('🎉 ВЫИГРЫШ! +'+result.win_amount.toFixed(2)+'$','win');
+                    spawnConfetti();playWinSound();
+                }else{
+                    showCenterBanner('😞 ПРОИГРЫШ','lose');
+                    playLoseSound();
+                }
+                var cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
+                $('#resultNum').textContent=result.number;
+                $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
+                $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
                 $('#balanceCard').classList.add('wave');
                 setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
             }catch(e){toast('Ошибка игры');loadUser()}
@@ -329,9 +353,8 @@
         function spinWheel(targetNum){
             return new Promise(function(resolve){
                 var ring=$('#rouletteRing');
-                var numbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+                var idx=rNumbers.indexOf(targetNum);
                 var sector=360/37;
-                var idx=numbers.indexOf(targetNum);
                 var angle=sector*idx+sector/2;
                 var spins=5+Math.floor(Math.random()*5);
                 wheelRotation+=spins*360+(360-wheelRotation%360)+angle;
@@ -339,25 +362,6 @@
                 playSpinSound();
                 setTimeout(resolve,5000);
             });
-        }
-
-        function showBanner(result){
-            var b=$('#centerBanner');
-            b.classList.remove('win','lose','show','hide');
-            void b.offsetWidth;
-            if(result.is_win){
-                b.innerHTML='🎉<br>+'+result.win_amount.toFixed(2)+'$<br><span style="font-size:14px;">ПОБЕДА!</span>';
-                b.classList.add('win');spawnConfetti();playWinSound();
-            }else{
-                b.innerHTML='😢<br>-'+($('#betAmount').value||'0')+'$<br><span style="font-size:14px;">Проигрыш</span>';
-                b.classList.add('lose');playLoseSound();
-            }
-            b.classList.add('show');
-            var cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
-            $('#resultNum').textContent=result.number;
-            $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
-            $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
-            setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},2500);
         }
 
         // WebSocket
@@ -423,10 +427,8 @@
 
         function showMPResult(data){
             var isWin=data.winner_id===user.id;
-            var b=$('#centerBanner');b.classList.remove('win','lose','show','hide');void b.offsetWidth;
-            if(isWin){b.innerHTML='🏆<br>+'+(data.win_amount||0).toFixed(2)+'$';b.classList.add('win');spawnConfetti();playWinSound()}
-            else{b.innerHTML='😢<br>'+(data.winner_nickname||'Игрок');b.classList.add('lose');playLoseSound()}
-            b.classList.add('show');setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},3000);
+            if(isWin){showCenterBanner('🏆 ВЫ ПОБЕДИЛИ! +'+(data.win_amount||0).toFixed(2)+'$','win');spawnConfetti();playWinSound()}
+            else{showCenterBanner('😢 Победил: '+(data.winner_nickname||'Игрок'),'lose');playLoseSound()}
             loadUser();setTimeout(hideMyRoom,4000);
         }
 
