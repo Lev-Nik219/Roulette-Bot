@@ -413,8 +413,7 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
          InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast"),
          InlineKeyboardButton(text="📩 Ответить", callback_data="admin_reply")],
-        [InlineKeyboardButton(text="🗑 Очистка БД", callback_data="admin_clear_db"),
-         InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_refresh")]
+        [InlineKeyboardButton(text="🗑 Очистка БД", callback_data="admin_clear_db")]
     ])
 
 def get_back_to_admin_keyboard() -> InlineKeyboardMarkup:
@@ -477,8 +476,11 @@ async def admin_panel(message: Message):
 async def admin_refresh(callback: CallbackQuery):
     if callback.from_user.id not in config.ADMIN_IDS:
         await callback.answer("⛔ Доступ запрещён", show_alert=True); return
-    await callback.message.edit_text("🔧 *Админ-панель*\n\nВыберите действие:", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
     await callback.answer()
+    try:
+        await callback.message.edit_text("🔧 *Админ-панель*\n\nВыберите действие:", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
+    except:
+        pass
 
 # ADD BALANCE
 @admin_router.callback_query(F.data == "admin_add_balance")
@@ -555,20 +557,25 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
 async def admin_players_list(callback: CallbackQuery):
     if callback.from_user.id not in config.ADMIN_IDS:
         await callback.answer("⛔ Доступ запрещён", show_alert=True); return
+    await callback.answer()  # ОТВЕЧАЕМ СРАЗУ
+    
     async with sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users") as cursor:
         row = await cursor.fetchone()
         total = row["cnt"] if row else 0
     async with sqlite_pool.execute("SELECT user_id, username, nickname, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20") as cursor:
         players = await cursor.fetchall()
     if not players:
-        await callback.message.edit_text("👥 Список игроков пуст\nВсего игроков: 0", reply_markup=get_back_to_admin_keyboard()); return
+        await callback.message.edit_text("👥 Список игроков пуст\nВсего игроков: 0", reply_markup=get_back_to_admin_keyboard())
+        return
     text = f"👥 Список игроков (Топ-20 из {total})\n\n"
     for p in players:
         nick = (p["nickname"] or p["username"] or str(p["user_id"]))[:20]
         nick = nick.replace('_','\\_').replace('*','\\*').replace('`','\\`').replace('[','\\[')
         text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games']} | 🏆 {p['total_wins']}\n"
-    await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
-    await callback.answer()
+    try:
+        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
+    except:
+        pass  # Игнорируем если сообщение не изменилось
 
 # STATISTICS
 @admin_router.callback_query(F.data == "admin_stats")
