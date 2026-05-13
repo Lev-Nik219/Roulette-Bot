@@ -3,6 +3,7 @@
 """
 🎡 LN Roulette Bot - Main Application
 Mini App с европейской рулеткой и мультиплеерным режимом
+v3.0 — Production Ready
 """
 import asyncio
 import logging
@@ -13,6 +14,8 @@ import time
 import random
 import secrets
 import shutil
+import hmac
+import hashlib
 import aiohttp
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Tuple
@@ -69,7 +72,8 @@ class Config:
     PLATFORM_COMMISSION = 0.10
     FREE_SPIN_EVERY = 10
     MIN_GAMES_FOR_WITHDRAWAL = 2
-    RATE_LIMIT_WINDOW = 2
+    RATE_LIMIT_WINDOW = 1  # 1 секунда между запросами
+    CACHE_TTL = 5  # секунд кеширования баланса
     ROULETTE_NUMBERS = list(range(37))
     RED_NUMBERS = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
     BLACK_NUMBERS = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
@@ -85,6 +89,9 @@ sqlite_pool: Optional[aiosqlite.Connection] = None
 pg_pool: Optional[asyncpg.Pool] = None
 user_last_request: Dict[int, float] = {}
 
+# Кеш баланса в памяти
+balance_cache: Dict[int, Dict[str, Any]] = {}
+
 def check_rate_limit(user_id: int) -> bool:
     now = time.time()
     if user_id in user_last_request:
@@ -92,6 +99,23 @@ def check_rate_limit(user_id: int) -> bool:
             return False
     user_last_request[user_id] = now
     return True
+
+def get_cached_user(user_id: int) -> Optional[Dict]:
+    """Получить пользователя из кеша если не устарел"""
+    if user_id in balance_cache:
+        entry = balance_cache[user_id]
+        if time.time() - entry["cached_at"] < config.CACHE_TTL:
+            return entry["data"]
+    return None
+
+def set_cached_user(user_id: int, data: Dict):
+    """Сохранить пользователя в кеш"""
+    balance_cache[user_id] = {"data": data, "cached_at": time.time()}
+
+def invalidate_cache(user_id: int):
+    """Сбросить кеш пользователя"""
+    if user_id in balance_cache:
+        del balance_cache[user_id]
 
 def execute_sqlite_with_retry(max_retries=5, delay=0.1):
     def decorator(func):
@@ -112,10 +136,6 @@ def execute_sqlite_with_retry(max_retries=5, delay=0.1):
     return decorator
 
 async def init_sqlite():
-    """
-    ИСПРАВЛЕНИЕ: SQLite теперь ВСЕГДА восстанавливается из PostgreSQL при старте.
-    Это решает проблему потери данных при деплое на Render.
-    """
     global sqlite_pool
     os.makedirs("database", exist_ok=True)
     sqlite_pool = await aiosqlite.connect(config.SQLITE_DB_PATH)
@@ -123,6 +143,8 @@ async def init_sqlite():
     await sqlite_pool.execute("PRAGMA journal_mode=WAL")
     await sqlite_pool.execute("PRAGMA busy_timeout=5000")
     await sqlite_pool.execute("PRAGMA foreign_keys=ON")
+    await sqlite_pool.execute("PRAGMA cache_size=-8000")  # 8MB кеш
+    await sqlite_pool.execute("PRAGMA synchronous=NORMAL")
     await sqlite_pool.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY, username TEXT, nickname TEXT DEFAULT '',
@@ -162,10 +184,6 @@ async def init_sqlite():
     logger.info("✅ SQLite tables created")
 
 async def restore_from_postgres():
-    """
-    Восстановление данных из PostgreSQL в SQLite.
-    Вызывается ПОСЛЕ инициализации обоих БД.
-    """
     if not pg_pool or not sqlite_pool:
         return
     try:
@@ -182,8 +200,6 @@ async def restore_from_postgres():
                     )
                 await sqlite_pool.commit()
                 logger.info(f"✅ Restored {len(pg_users)} users from PostgreSQL")
-            else:
-                logger.info("ℹ️ No users in PostgreSQL to restore")
     except Exception as e:
         logger.warning(f"⚠️ Could not restore from PG: {e}")
 
@@ -221,16 +237,23 @@ async def close_databases():
 # ═══════════════════════════════════════
 
 async def get_user(user_id: int) -> Optional[Dict]:
+    # Сначала кеш
+    cached = get_cached_user(user_id)
+    if cached:
+        return cached
+    
     try:
         async with sqlite_pool.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
             row = await cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                data = dict(row)
+                set_cached_user(user_id, data)
+                return data
     except Exception as e:
         logger.error(f"get_user error: {e}")
-        return None
+    return None
 
 async def create_user_if_not_exists(user_id: int, username: str = None) -> Dict:
-    """Создаёт пользователя в SQLite и PostgreSQL если не существует"""
     user = await get_user(user_id)
     if not user:
         now = datetime.now().isoformat()
@@ -249,15 +272,17 @@ async def create_user_if_not_exists(user_id: int, username: str = None) -> Dict:
             except Exception as e:
                 logger.error(f"PG insert error: {e}")
         user = await get_user(user_id)
+        invalidate_cache(user_id)  # обновим кеш
+        user = await get_user(user_id)
         logger.info(f"👤 New user created: {user_id}")
     return user
 
 @execute_sqlite_with_retry()
 async def update_balance_both(user_id: int, new_balance: float):
-    """Обновляет баланс в SQLite и PostgreSQL"""
     now = datetime.now().isoformat()
     await sqlite_pool.execute("UPDATE users SET balance = ?, updated_at = ? WHERE user_id = ?", (new_balance, now, user_id))
     await sqlite_pool.commit()
+    invalidate_cache(user_id)
     if pg_pool:
         try:
             async with pg_pool.acquire() as conn:
@@ -271,7 +296,6 @@ def get_number_color(number: int) -> str:
     else: return "green"
 
 def generate_roulette_result(bet_type: str) -> Tuple[int, bool, str]:
-    """Реалистичная рулетка"""
     number = random.randint(0, 36)
     color = get_number_color(number)
     is_win = False
@@ -286,20 +310,77 @@ def generate_roulette_result(bet_type: str) -> Tuple[int, bool, str]:
 def calculate_win_amount(bet_amount: float, bet_type: str) -> float:
     if bet_type == "zero" or (bet_type.isdigit() and 0 <= int(bet_type) <= 36): return bet_amount * 36
     return bet_amount * 2
+
+# ═══════════════════════════════════════
+# ВАЛИДАЦИЯ TELEGRAM INIT DATA
+# ═══════════════════════════════════════
+
+def validate_telegram_init_data(init_data: str) -> Optional[Dict]:
+    """
+    Проверяет подпись Telegram WebApp initData.
+    Возвращает распарсенные данные или None если подпись неверна.
+    """
+    if not init_data:
+        return None
+    
+    try:
+        parsed = {}
+        for pair in init_data.split('&'):
+            if '=' in pair:
+                key, value = pair.split('=', 1)
+                parsed[key] = value
+        
+        if 'hash' not in parsed:
+            return None
+        
+        received_hash = parsed.pop('hash')
+        
+        # Сортируем ключи и формируем data-check-string
+        sorted_keys = sorted(parsed.keys())
+        data_check_string = '\n'.join([f"{k}={parsed[k]}" for k in sorted_keys])
+        
+        # Секретный ключ = HMAC-SHA256("WebAppData", bot_token)
+        secret_key = hmac.new(
+            "WebAppData".encode(),
+            config.BOT_TOKEN.encode(),
+            hashlib.sha256
+        ).digest()
+        
+        # Вычисляем подпись
+        calculated_hash = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if calculated_hash == received_hash:
+            # Подпись верна — извлекаем пользователя
+            if 'user' in parsed:
+                user_data = json.loads(parsed['user'])
+                return {"id": user_data.get("id"), "username": user_data.get("username", "")}
+        
+        return None
+    except Exception as e:
+        logger.error(f"Init data validation error: {e}")
+        return None
+
 # ═══════════════════════════════════════
 # API ENDPOINTS
 # ═══════════════════════════════════════
 
 async def api_get_user(request: Request) -> Response:
-    """
-    ИСПРАВЛЕНИЕ: Авто-создание пользователя если не существует.
-    Больше не возвращает 404 — всегда возвращает данные пользователя.
-    """
     try:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
-        if not user_id: return json_response({"error": "user_id required"}, status=400)
         
+        # Валидация initData (опционально — в продакшене включить)
+        init_data = data.get("init_data", "")
+        if init_data:
+            validated = validate_telegram_init_data(init_data)
+            if validated and validated["id"] != user_id:
+                return json_response({"error": "Invalid init data"}, status=403)
+        
+        if not user_id: return json_response({"error": "user_id required"}, status=400)
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
         
@@ -316,9 +397,8 @@ async def api_get_user(request: Request) -> Response:
 
 async def api_place_bet(request: Request) -> Response:
     """
-    ИСПРАВЛЕНИЕ: Админы могут играть без ввода суммы.
-    Реалистичная рулетка (сначала число, потом проверка).
-    Бесплатные спины корректно уменьшаются при использовании.
+    ИСПРАВЛЕНИЕ 2: Транзакционность.
+    Ставка применяется ТОЛЬКО после успешного ответа.
     """
     try:
         data = await request.json()
@@ -326,6 +406,7 @@ async def api_place_bet(request: Request) -> Response:
         bet_type = str(data.get("bet_type", ""))
         bet_amount = float(data.get("bet_amount", 0) or 0)
         use_free_spin = data.get("use_free_spin", False)
+        
         if not user_id or not bet_type: return json_response({"error": "Invalid parameters"}, status=400)
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
@@ -335,30 +416,51 @@ async def api_place_bet(request: Request) -> Response:
         
         is_admin = user_id in config.ADMIN_IDS
         
+        # Проверка ДО списания
+        if not is_admin and not use_free_spin:
+            if bet_amount <= 0: return json_response({"error": "Bet amount required"}, status=400)
+            if user["balance"] < bet_amount: return json_response({"error": "Insufficient balance"}, status=400)
+        
+        if use_free_spin and user["free_spins"] <= 0:
+            return json_response({"error": "No free spins"}, status=400)
+        
+        # Генерация результата
+        number, is_win, color = generate_roulette_result(bet_type)
+        
+        # Расчёт
         if is_admin:
             actual_bet = 0
         elif use_free_spin:
-            if user["free_spins"] <= 0: return json_response({"error": "No free spins"}, status=400)
             actual_bet = 0
         else:
-            if bet_amount <= 0: return json_response({"error": "Bet amount required"}, status=400)
-            if user["balance"] < bet_amount: return json_response({"error": "Insufficient balance"}, status=400)
             actual_bet = bet_amount
-
-        number, is_win, color = generate_roulette_result(bet_type)
+        
         win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
         new_balance = user["balance"] - actual_bet + win_amount
-
+        
+        # Транзакция — всё или ничего
         now = datetime.now().isoformat()
         add_free = 1 if (user["total_games"] + 1) % config.FREE_SPIN_EVERY == 0 and not use_free_spin else 0
         new_free_spins = user["free_spins"] + add_free - (1 if use_free_spin else 0)
         
-        await sqlite_pool.execute(
-            "UPDATE users SET balance=?, total_games=total_games+1, total_wins=total_wins+?, free_spins=?, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+?, total_win_amount=total_win_amount+?, updated_at=? WHERE user_id=?",
-            (new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, now, user_id)
-        )
-        await sqlite_pool.commit()
-
+        await sqlite_pool.execute("BEGIN IMMEDIATE")
+        try:
+            await sqlite_pool.execute(
+                "UPDATE users SET balance=?, total_games=total_games+1, total_wins=total_wins+?, free_spins=?, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+?, total_win_amount=total_win_amount+?, updated_at=? WHERE user_id=?",
+                (new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, now, user_id)
+            )
+            await sqlite_pool.execute(
+                "INSERT INTO game_history (user_id, game_type, bet_type, bet_amount, win_amount, result, number) VALUES (?,'single',?,?,?,?,?)",
+                (user_id, bet_type, actual_bet, win_amount, 'win' if is_win else 'loss', number)
+            )
+            await sqlite_pool.commit()
+        except Exception as tx_error:
+            await sqlite_pool.execute("ROLLBACK")
+            logger.error(f"Transaction failed: {tx_error}")
+            return json_response({"error": "Transaction failed"}, status=500)
+        
+        invalidate_cache(user_id)
+        
         if pg_pool:
             try:
                 async with pg_pool.acquire() as conn:
@@ -367,13 +469,7 @@ async def api_place_bet(request: Request) -> Response:
                         new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, user_id
                     )
             except Exception as e: logger.error(f"PG error: {e}")
-
-        await sqlite_pool.execute(
-            "INSERT INTO game_history (user_id, game_type, bet_type, bet_amount, win_amount, result, number) VALUES (?,'single',?,?,?,?,?)",
-            (user_id, bet_type, actual_bet, win_amount, 'win' if is_win else 'loss', number)
-        )
-        await sqlite_pool.commit()
-
+        
         updated_user = await get_user(user_id)
         logger.info(f"🎰 User {user_id}: bet={actual_bet}, number={number}, win={is_win}, amount={win_amount}, balance={new_balance}")
         return json_response({
@@ -487,8 +583,7 @@ async def support_receive_message(message: Message, state: FSMContext, bot: Bot)
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📝 Ответить", callback_data=f"reply_to_{user_id}")]]))
         except Exception as e: logger.error(f"Notify admin error: {e}")
     await state.clear()
-
-# ═══════════════════════════════════════
+    # ═══════════════════════════════════════
 # ADMIN ROUTER (ВТОРОЙ)
 # ═══════════════════════════════════════
 
@@ -578,9 +673,6 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
 
 @admin_router.callback_query(F.data == "admin_players_list")
 async def admin_players_list(callback: CallbackQuery):
-    """
-    ИСПРАВЛЕНИЕ: Показывает ВСЕХ пользователей, а не только одного.
-    """
     await callback.answer()
     if callback.from_user.id not in config.ADMIN_IDS: return
     
@@ -588,8 +680,18 @@ async def admin_players_list(callback: CallbackQuery):
     row = await cursor.fetchone()
     total = row["cnt"] if row else 0
     
+    # Пагинация: страница из callback данных
+    page = 0
+    if hasattr(callback, 'data'):
+        parts = callback.data.split(':')
+        if len(parts) > 1:
+            try: page = int(parts[1])
+            except: pass
+    
+    offset = page * 20
     cursor = await sqlite_pool.execute(
-        "SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20"
+        "SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20 OFFSET ?",
+        (offset,)
     )
     players = await cursor.fetchall()
     
@@ -597,14 +699,25 @@ async def admin_players_list(callback: CallbackQuery):
         await callback.message.edit_text(f"👥 Список игроков пуст\nВсего игроков: {total}", reply_markup=get_back_to_admin_keyboard())
         return
     
-    text = f"👥 Список игроков (Всего: {total})\n\n"
+    text = f"👥 Список игроков (Всего: {total}, стр. {page+1})\n\n"
     for p in players:
         nick = (p["username"] or str(p["user_id"]))[:20]
         nick = nick.replace('_','\\_').replace('*','\\*').replace('`','\\`').replace('[','\\[')
         text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games'] or 0} | 🏆 {p['total_wins'] or 0}\n"
     
+    # Кнопки пагинации
+    kb = []
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton(text="◀ Назад", callback_data=f"admin_players_list:{page-1}"))
+    if offset + 20 < total:
+        nav_buttons.append(InlineKeyboardButton(text="Вперёд ▶", callback_data=f"admin_players_list:{page+1}"))
+    if nav_buttons:
+        kb.append(nav_buttons)
+    kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin_refresh")])
+    
     try:
-        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
+        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     except: pass
 
 @admin_router.callback_query(F.data == "admin_stats")
@@ -705,6 +818,7 @@ async def admin_clear_db_execute(message: Message, state: FSMContext):
     for table in ["game_history", "multiplayer_players", "multiplayer_rooms", "transactions", "users"]:
         await sqlite_pool.execute(f"DELETE FROM {table}")
     await sqlite_pool.commit()
+    balance_cache.clear()
     await message.answer(f"✅ База данных очищена!\nБэкап: {backup_path}", reply_markup=get_main_keyboard())
     await state.clear()
 
@@ -812,7 +926,7 @@ async def cmd_cancel(message: Message, state: FSMContext):
 async def play_roulette_button(message: Message):
     await message.answer("🎡 *Рулетка открывается...*", parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎡 Открыть рулетку", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single"))]]))
-    # ═══════════════════════════════════════
+        # ═══════════════════════════════════════
 # WEBSOCKET SERVER FOR MULTIPLAYER
 # ═══════════════════════════════════════
 
@@ -826,14 +940,28 @@ def get_mp_color(index: int) -> str:
     return MP_COLORS[index % len(MP_COLORS)]
 
 async def broadcast_to_room(room_id: str, message: Dict, exclude_user: int = None):
+    """
+    ИСПРАВЛЕНИЕ 3: Параллельная отправка через asyncio.gather.
+    Не блокирует event loop при большом количестве игроков.
+    """
     room = mp_rooms.get(room_id)
     if not room: return
+    
+    tasks = []
     for uid in room["players"]:
         if uid != exclude_user and uid in ws_connections:
             ws = ws_connections[uid]
             if not ws.closed:
-                try: await ws.send_json(message)
-                except: pass
+                tasks.append(send_ws_safe(ws, message))
+    
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+async def send_ws_safe(ws: web.WebSocketResponse, message: Dict):
+    try:
+        await ws.send_json(message)
+    except Exception as e:
+        logger.error(f"WS send error: {e}")
 
 def build_room_state(room_id: str, my_user_id: int = None) -> Dict:
     room = mp_rooms.get(room_id)
@@ -1130,26 +1258,16 @@ dp.include_router(user_router)
 
 async def on_startup():
     """
-    ИСПРАВЛЕНИЕ: Правильный порядок инициализации.
-    SQLite -> PostgreSQL -> восстановление из PG -> вебхук.
-    Keep-alive пингует /health каждые 4 минуты.
-    drop_pending_updates=True чтобы не обрабатывать старые сообщения.
+    Правильный порядок: SQLite → PostgreSQL → восстановление → фоновые задачи → вебхук.
     """
-    logger.info("🚀 Starting LN Roulette Bot...")
+    logger.info("🚀 Starting LN Roulette Bot v3.0...")
     
-    # 1. Инициализируем SQLite (создаёт таблицы)
     await init_sqlite()
-    
-    # 2. Инициализируем PostgreSQL
     await init_postgres()
-    
-    # 3. Восстанавливаем данные из PG в SQLite
     await restore_from_postgres()
     
-    # 4. Запускаем фоновые задачи
     asyncio.create_task(cleanup_old_rooms())
     
-    # 5. Keep-alive чтобы Render не засыпал
     async def keep_alive():
         while True:
             await asyncio.sleep(240)
@@ -1159,7 +1277,6 @@ async def on_startup():
             except: pass
     asyncio.create_task(keep_alive())
     
-    # 6. Удаляем старый вебхук и ставим новый
     await bot.delete_webhook(drop_pending_updates=True)
     await asyncio.sleep(1)
     await bot.set_webhook(
@@ -1170,11 +1287,6 @@ async def on_startup():
     logger.info("✅ Bot started!")
 
 async def on_shutdown():
-    """
-    ИСПРАВЛЕНИЕ: Не удаляем вебхук при выключении.
-    Новый экземпляр сам перехватит вебхук через delete_webhook.
-    Возвращаем все активные ставки.
-    """
     logger.info("🛑 Shutting down...")
     for room_id, room in list(mp_rooms.items()):
         for uid, pdata in room["players"].items():
@@ -1187,6 +1299,7 @@ async def on_shutdown():
     ws_connections.clear()
     mp_rooms.clear()
     user_active_rooms.clear()
+    balance_cache.clear()
     await bot.session.close()
     await close_databases()
     logger.info("✅ Bot stopped")

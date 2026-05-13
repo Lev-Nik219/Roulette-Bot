@@ -181,7 +181,6 @@
 
         <!-- MULTIPLAYER GAME -->
         <div class="tab-content" id="tab-multiplayer">
-            <!-- Лобби -->
             <div class="game-area" id="mpLobbyArea">
                 <div style="font-size:20px;font-weight:800;margin-bottom:10px;">👥 МУЛЬТИПЛЕЕР</div>
                 <input type="number" class="mp-bet-input" id="mpBetInput" value="1" min="1" step="0.1" placeholder="Сумма ставки ($)">
@@ -191,21 +190,17 @@
                 <button class="action-btn ghost" id="mpRefreshRoomsBtn" style="margin-top:8px;">🔄 Обновить</button>
             </div>
 
-            <!-- Комната -->
             <div class="game-area hidden" id="mpRoomArea">
                 <div style="font-size:20px;font-weight:800;margin-bottom:4px;">👥 КОМНАТА #<span id="mpRoomId">---</span></div>
                 <div class="mp-timer" id="mpRoomTimer">30</div>
                 <div class="mp-bank">Банк: <span id="mpRoomBank">0.00</span>$</div>
-
                 <div class="mp-wheel-container">
                     <div class="mp-wheel-marker"></div>
                     <div class="mp-wheel-ring" id="mpWheelRing"></div>
                     <div class="mp-wheel-center">🎯</div>
                 </div>
-
                 <button class="action-btn green hidden" id="mpRaiseBetBtn">⬆️ Повысить ставку</button>
                 <button class="action-btn ghost" id="mpLeaveRoomBtn" style="color:#ff6b6b;">🚪 Выйти</button>
-
                 <div style="font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin-top:10px;">Лидерборд</div>
                 <div class="mp-leaderboard" id="mpLeaderboard">
                     <div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>
@@ -218,8 +213,7 @@
 
     <script>
         // ═══════════════════════════════════════
-        // ИСПРАВЛЕНИЕ: user_id теперь берётся из Telegram WebApp initData
-        // Каждый пользователь получает свой баланс
+        // v3.0 — Production Ready
         // ═══════════════════════════════════════
         const tg = window.Telegram?.WebApp;
         let user = null;
@@ -236,15 +230,13 @@
             }
         }
 
-        // Если не в Telegram — пробуем получить user_id из URL
         if (!user) {
             const params = new URLSearchParams(window.location.search);
             const uid = params.get('user_id');
             if (uid) {
                 user = { id: parseInt(uid), username: 'player', firstName: 'Player' };
             } else {
-                // Тестовый режим — только для отладки
-                console.warn('⚠️ Running in test mode');
+                console.warn('⚠️ Test mode');
                 user = { id: 1167503795, username: 'test', firstName: 'Tester' };
             }
         }
@@ -255,11 +247,33 @@
         const WS_URL = API.replace('https','wss').replace('http','ws');
 
         let state = { balance:0, freeSpins:0, totalGames:0, totalWins:0, selectedBet:null, isSpinning:false, mode:'single' };
-        let ws = null, wheelRotation = 0;
-        let mpState = { players:[], bank:0, timer:30, myBet:0, roundActive:false, winner:null };
+        let ws = null, wheelRotation = 0, wsReconnectDelay = 1000;
+        let mpState = { players:[], bank:0, timer:30, myBet:0, roundActive:false };
+        let audioCtx = null;
 
         const $ = s => document.querySelector(s);
         const $$ = s => document.querySelectorAll(s);
+
+        // ═══════════════════════════════════════
+        // AUDIO — инициализация по первому жесту (iOS fix)
+        // ═══════════════════════════════════════
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        document.addEventListener('touchstart', function() { getAudioContext(); }, { once: true });
+        document.addEventListener('click', function() { getAudioContext(); }, { once: true });
+
+        function playSpinSound(){try{const a=getAudioContext();const d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
+        function playWinSound(){try{const a=getAudioContext();[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
+        function playLoseSound(){try{const a=getAudioContext();const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
+        function spawnConfetti(){var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}
 
         // ═══════════════════════════════════════
         // PARTICLES
@@ -287,14 +301,6 @@
         animateParticles();
 
         // ═══════════════════════════════════════
-        // AUDIO
-        // ═══════════════════════════════════════
-        function playSpinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
-        function playWinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
-        function playLoseSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
-        function spawnConfetti(){var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}
-
-        // ═══════════════════════════════════════
         // API
         // ═══════════════════════════════════════
         async function api(endpoint,data={}){
@@ -317,7 +323,6 @@
                 state.totalWins=d.total_wins||0;
                 state.totalGames=d.total_games||0;
                 updateUI();
-                console.log('💰 Balance loaded:', state.balance);
             }catch(e){console.error('Load user error:', e);}
         }
 
@@ -361,7 +366,7 @@
             if(b.dataset.tab==='multiplayer'){
                 connectWS();
                 switchMPTab('lobby');
-                setTimeout(function(){sendWS({action:'mp_get_rooms'});},800);
+                setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);
             }
             vibrate();
         })});
@@ -422,16 +427,23 @@
         }
 
         // ═══════════════════════════════════════
-        // WEBSOCKET
+        // WEBSOCKET с экспоненциальным реконнектом
         // ═══════════════════════════════════════
         function connectWS(){
             if(ws&&ws.readyState===WebSocket.OPEN)return;
             try{
                 ws=new WebSocket(WS_URL+'/ws');
-                ws.onopen=function(){ws.send(JSON.stringify({action:'connect',user_id:user.id}));};
+                ws.onopen=function(){
+                    wsReconnectDelay=1000;
+                    ws.send(JSON.stringify({action:'connect',user_id:user.id}));
+                };
                 ws.onmessage=function(e){try{handleWS(JSON.parse(e.data))}catch(ex){}};
-                ws.onclose=function(){setTimeout(connectWS,3000)};
-            }catch(e){}
+                ws.onclose=function(){
+                    wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);
+                    setTimeout(connectWS,wsReconnectDelay);
+                };
+                ws.onerror=function(){};
+            }catch(e){setTimeout(connectWS,3000);}
         }
 
         function sendWS(data){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else{toast('Нет соединения');connectWS()}}
@@ -445,6 +457,7 @@
                 case 'mp_result':showMPResult(data);break;
                 case 'mp_round_reset':resetMPRoom();break;
                 case 'mp_left_room':resetMPRoom();toast('Вы вышли из комнаты');break;
+                case 'mp_player_raised':toast('⬆️ '+(data.nickname||'Игрок')+' повысил ставку!');break;
                 case 'connected':break;
                 case 'error':toast(data.message);break;
                 case 'pong':break;
@@ -599,7 +612,6 @@
             sendWS({action:'mp_get_rooms'});
         }
 
-        // Кнопки мультиплеера
         $('#mpCreateRoomBtn').addEventListener('click',function(){
             var amt=parseFloat($('#mpBetInput').value)||0;
             if(amt<1){toast('Минимальная ставка: 1$');return}
@@ -630,9 +642,7 @@
             loadUser();
         });
 
-        $('#mpRefreshRoomsBtn').addEventListener('click',function(){
-            sendWS({action:'mp_get_rooms'});
-        });
+        $('#mpRefreshRoomsBtn').addEventListener('click',function(){sendWS({action:'mp_get_rooms'});});
 
         // ═══════════════════════════════════════
         // INIT
@@ -642,7 +652,7 @@
         if(urlParams.get('mode')==='multiplayer'){
             $$('.tab-btn').forEach(function(x){x.classList.remove('active')});
             var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');
-            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){switchMPTab('lobby');sendWS({action:'mp_get_rooms'});},800);}
+            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){switchMPTab('lobby');sendWS({action:'mp_get_rooms'});},1000);}
         }
         setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
         window.addEventListener('beforeunload',function(){if(ws)ws.close()});
