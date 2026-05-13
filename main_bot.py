@@ -14,6 +14,7 @@ import random
 import hashlib
 import hmac
 import secrets
+import aiohttp
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
@@ -994,12 +995,10 @@ async def admin_players_list(callback: CallbackQuery):
         await callback.answer("⛔ Доступ запрещён", show_alert=True)
         return
 
-    # Get total count
     async with sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users") as cursor:
         row = await cursor.fetchone()
         total = row["cnt"] if row else 0
 
-    # Get top 20 by balance
     async with sqlite_pool.execute(
         "SELECT user_id, username, nickname, balance, total_games, total_wins "
         "FROM users ORDER BY balance DESC LIMIT 20"
@@ -1008,17 +1007,18 @@ async def admin_players_list(callback: CallbackQuery):
 
     if not players:
         await callback.message.edit_text(
-            "👥 *Список игроков пуст*\nВсего игроков: 0",
-            parse_mode=ParseMode.MARKDOWN,
+            "👥 Список игроков пуст\nВсего игроков: 0",
             reply_markup=get_back_to_admin_keyboard()
         )
         return
 
-    text = f"👥 *Список игроков* (Топ-20 из {total})\n\n"
+    text = f"👥 Список игроков (Топ-20 из {total})\n\n"
     for p in players:
-        nick = p["nickname"] or p["username"] or str(p["user_id"])
+        nick = (p["nickname"] or p["username"] or str(p["user_id"]))[:20]
+        # Экранируем специальные символы для Markdown
+        nick = nick.replace('_', '\\_').replace('*', '\\*').replace('`', '\\`').replace('[', '\\[')
         text += (
-            f"• `{p['user_id']}` — {nick[:20]}\n"
+            f"• `{p['user_id']}` — {nick}\n"
             f"  💰 {p['balance']:.2f}$ | 🎮 {p['total_games']} | 🏆 {p['total_wins']}\n"
         )
 
@@ -1365,7 +1365,7 @@ async def cmd_start(message: Message):
         f"• 👥 Мультиплеер — играйте против других игроков!\n\n"
         f"💎 Выигрывайте до ×36 от ставки!\n"
         f"📊 Играйте ответственно.\n\n"
-        f"Выберите режим игры на клавиатуре ниже 👇"
+        f"🎰 Удачной игры!"
     )
 
     await message.answer(
@@ -2242,3 +2242,32 @@ if __name__ == "__main__":
         port=config.WEBHOOK_PORT,
         access_log=logger
     )
+
+async def on_startup():
+    """Действия при запуске"""
+    logger.info("🚀 Starting LN Roulette Bot...")
+
+    await init_sqlite()
+    await init_postgres()
+
+    asyncio.create_task(multiplayer_timer_checker())
+    
+    # Пинг самого себя каждые 4 минуты чтобы не засыпать
+    async def keep_alive():
+        while True:
+            await asyncio.sleep(240)  # 4 минуты
+            try:
+                async with aiohttp.ClientSession() as session:
+                    await session.get(f"{config.API_URL}/health")
+            except:
+                pass
+    
+    asyncio.create_task(keep_alive())
+
+    await bot.set_webhook(
+        url=config.WEBHOOK_URL,
+        allowed_updates=["message", "callback_query", "inline_query"]
+    )
+
+    logger.info(f"✅ Webhook set to {config.WEBHOOK_URL}")
+    logger.info("✅ Bot started successfully!")
