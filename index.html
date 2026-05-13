@@ -8,10 +8,10 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+        :root{--bg-primary:#0a1a0a;--bg-secondary:#0d1f0d;--accent:#f7971e;--accent2:#ffd200;--win:#4CAF50;--lose:#ff6b6b;--shadow-btn:0 6px 20px rgba(247,151,30,0.4),inset 0 1px 0 rgba(255,255,255,0.2)}
         @keyframes bgPulse{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
         @keyframes popIn{0%{transform:scale(0)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
-        @keyframes neonPulse{0%,100%{text-shadow:0 0 10px #ffd700,0 0 30px #f7971e}50%{text-shadow:0 0 20px #ffd700,0 0 60px #f7971e,0 0 80px #e65100}}
         @keyframes balanceWave{0%{transform:scale(1)}30%{transform:scale(1.1)}60%{transform:scale(0.95)}100%{transform:scale(1)}}
         @keyframes bannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5) rotate(-10deg)}60%{opacity:1;transform:translate(-50%,-50%) scale(1.05) rotate(2deg)}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
         @keyframes bannerOut{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(0.5) rotate(10deg)}}
@@ -19,6 +19,8 @@
         @keyframes confetti{0%{transform:translateY(0) rotate(0deg) scale(1);opacity:1}100%{transform:translateY(-400px) rotate(720deg) scale(0);opacity:0}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes wheelGlow{0%,100%{box-shadow:0 0 30px rgba(247,151,30,0.3)}50%{box-shadow:0 0 50px rgba(247,151,30,0.5)}}
+        @keyframes neonPulse{0%,100%{text-shadow:0 0 10px #ffd700,0 0 30px #f7971e}50%{text-shadow:0 0 20px #ffd700,0 0 60px #f7971e,0 0 80px #e65100}}
+        @keyframes floatParticle{0%,100%{transform:translateY(0) translateX(0);opacity:0}25%{transform:translateY(-50px) translateX(30px);opacity:0.8}50%{transform:translateY(-100px) translateX(-15px);opacity:0.4}75%{transform:translateY(-50px) translateX(-35px);opacity:0.8}}
 
         body{
             background:linear-gradient(135deg,#0a1a0a,#0d1f0d 30%,#0a1a0a 60%,#0d1f0d 100%);
@@ -38,7 +40,8 @@
             position:fixed;
             top:0;left:0;right:0;bottom:0;
             background:radial-gradient(ellipse at 30% 20%,rgba(76,175,80,0.06) 0%,transparent 60%),
-                       radial-gradient(ellipse at 70% 60%,rgba(247,151,30,0.05) 0%,transparent 50%);
+                       radial-gradient(ellipse at 70% 60%,rgba(247,151,30,0.05) 0%,transparent 50%),
+                       radial-gradient(ellipse at 50% 80%,rgba(76,175,80,0.04) 0%,transparent 50%);
             pointer-events:none;z-index:0
         }
 
@@ -62,36 +65,25 @@
 
         .game-area{background:rgba(0,0,0,0.3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:24px;padding:20px;margin-bottom:16px;text-align:center;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 40px rgba(0,0,0,0.5)}
 
-        /* WHEEL - яркий */
-        .roulette-wheel-container{position:relative;width:280px;height:280px;margin:20px auto;cursor:pointer;animation:wheelGlow 2s ease-in-out infinite}
-        .roulette-wheel-container:active{transform:scale(0.98)}
-        .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:#2a1500;box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 30px rgba(0,0,0,0.4);position:relative;overflow:hidden}
-        .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);
-            background:conic-gradient(from 0deg,
-                #2d8a2d 0deg 9.73deg,#222 9.73deg 19.46deg,#2d8a2d 19.46deg 29.19deg,#222 29.19deg 38.92deg,
-                #2d8a2d 38.92deg 48.65deg,#222 48.65deg 58.38deg,#2d8a2d 58.38deg 68.11deg,#222 68.11deg 77.84deg,
-                #2d8a2d 77.84deg 87.57deg,#222 87.57deg 97.30deg,#2d8a2d 97.30deg 107.03deg,#222 107.03deg 116.76deg,
-                #2d8a2d 116.76deg 126.49deg,#222 126.49deg 136.22deg,#2d8a2d 136.22deg 145.95deg,#222 145.95deg 155.68deg,
-                #2d8a2d 155.68deg 165.41deg,#222 165.41deg 175.14deg,#2d8a2d 175.14deg 184.87deg,#222 184.87deg 194.60deg,
-                #ffd700 194.60deg 204.33deg,
-                #222 204.33deg 214.06deg,#2d8a2d 214.06deg 223.79deg,#222 223.79deg 233.52deg,
-                #2d8a2d 233.52deg 243.25deg,#222 243.25deg 252.98deg,#2d8a2d 252.98deg 262.71deg,
-                #222 262.71deg 272.44deg,#2d8a2d 272.44deg 282.17deg,#222 282.17deg 291.90deg,
-                #2d8a2d 291.90deg 301.63deg,#222 301.63deg 311.36deg,#2d8a2d 311.36deg 321.09deg,
-                #222 321.09deg 330.82deg,#2d8a2d 330.82deg 340.55deg,#222 340.55deg 350.28deg,
-                #2d8a2d 350.28deg 360deg);
-            z-index:1}
-        .roulette-ball{position:absolute;width:14px;height:14px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-7px;margin-top:-124px;box-shadow:0 0 12px rgba(255,255,255,0.8);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5}
-        .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#a08060,#6d4c30);border-radius:50%;border:3px solid #4a3020;z-index:4}
-        .roulette-result-num{font-size:44px;font-weight:800;min-height:55px;margin:6px 0}
+        /* ROULETTE WHEEL */
+        .roulette-wheel-container{position:relative;width:240px;height:240px;margin:24px auto;animation:wheelGlow 2s ease-in-out infinite}
+        .roulette-outer{width:240px;height:240px;border-radius:50%;border:8px solid #5d4037;background:#3e2723;box-shadow:0 0 40px rgba(0,0,0,0.6),0 0 80px rgba(76,175,80,0.15);position:relative;overflow:hidden}
+        .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25)}
+        .roulette-ball{position:absolute;width:16px;height:16px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-8px;margin-top:-104px;box-shadow:0 0 12px rgba(255,255,255,0.8),0 0 24px rgba(255,255,255,0.4);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5}
+        .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#8d6e63,#5d4037);border-radius:50%;border:3px solid #3e2723;z-index:3}
+        .roulette-result-num{font-size:44px;font-weight:800;min-height:55px;margin:8px 0}
+
+        /* SPIN BUTTON */
+        .spin-btn{background:linear-gradient(180deg,#ff9d00,#e65100);border:none;color:white;font-weight:900;padding:18px 40px;border-radius:50px;font-size:18px;cursor:pointer;margin:14px 5px;box-shadow:0 8px 0 #bf360c,0 12px 30px rgba(247,151,30,0.5),inset 0 2px 0 rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:2px;transition:all 0.1s;position:relative;top:0}
+        .spin-btn:active{top:4px;box-shadow:0 4px 0 #bf360c,0 8px 20px rgba(247,151,30,0.5),inset 0 2px 0 rgba(255,255,255,0.2)}
+        .spin-btn:disabled{opacity:0.5;pointer-events:none;top:4px;box-shadow:0 4px 0 #bf360c}
 
         /* BETS */
         .bet-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:16px 0}
         .bet-option{background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.1);color:white;padding:10px 14px;border-radius:25px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.3s;min-width:70px}
+        .bet-option:hover{background:rgba(255,255,255,0.12);transform:translateY(-2px)}
         .bet-option:active{transform:scale(0.94)}
         .bet-option.selected{background:linear-gradient(180deg,#4CAF50,#2E7D32);color:white;font-weight:800;box-shadow:0 6px 20px rgba(76,175,80,0.5);border-color:#4CAF50}
-        .bet-option.red-sel{background:linear-gradient(180deg,#2d8a2d,#0d3d0d)!important;box-shadow:0 6px 20px rgba(76,175,80,0.4)!important;border-color:#4CAF50!important}
-        .bet-option.black-sel{background:linear-gradient(180deg,#333,#000)!important;box-shadow:0 6px 20px rgba(255,255,255,0.2)!important;border-color:#888!important}
 
         input[type="number"]{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:white;font-size:16px;margin-bottom:10px;outline:none;text-align:center}
         input:focus{border-color:#4CAF50;box-shadow:0 0 20px rgba(76,175,80,0.2)}
@@ -102,15 +94,14 @@
 
         .confetti{position:fixed;pointer-events:none;z-index:250;animation:confetti 2s ease-out forwards}
 
-        .center-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:linear-gradient(180deg,rgba(0,0,0,0.95),rgba(15,25,15,0.95));padding:24px 36px;border-radius:24px;z-index:200;text-align:center;font-weight:800;font-size:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.8);pointer-events:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+        .center-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:linear-gradient(180deg,rgba(0,0,0,0.95),rgba(15,25,15,0.95));padding:24px 36px;border-radius:24px;z-index:200;text-align:center;font-weight:800;font-size:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.8),0 0 60px rgba(76,175,80,0.1);pointer-events:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
         .center-banner.show{animation:bannerIn 0.5s cubic-bezier(0.4,0,0.2,1) forwards}
-        .center-banner.hide{animation:bannerOut 0.4s ease forwards}
         .center-banner.win{color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.6)}
         .center-banner.lose{color:#ff6b6b}
 
         /* MULTIPLAYER */
         .room-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all 0.3s}
-        .room-card:hover{border-color:rgba(76,175,80,0.4);box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+        .room-card:hover{border-color:rgba(76,175,80,0.4);box-shadow:0 8px 30px rgba(0,0,0,0.4);transform:translateY(-2px)}
         .room-header{display:flex;justify-content:space-between;align-items:center}
         .room-id{font-weight:700;color:#ffd700}
         .room-bank{color:#4CAF50;font-weight:600;font-size:14px}
@@ -128,8 +119,9 @@
         .loading-spinner{width:30px;height:30px;border:3px solid rgba(255,255,255,0.1);border-top-color:#ffd700;border-radius:50%;animation:spin 0.7s linear infinite;margin:16px auto}
 
         @media(max-width:380px){
-            .roulette-wheel-container{width:230px;height:230px}
-            .roulette-outer{width:230px;height:230px}
+            .roulette-wheel-container{width:200px;height:200px}
+            .roulette-outer{width:200px;height:200px}
+            .spin-btn{padding:14px 30px;font-size:16px}
         }
     </style>
 </head>
@@ -155,25 +147,26 @@
         <!-- SINGLE GAME -->
         <div class="tab-content active" id="tab-single">
             <div class="game-area">
-                <div class="roulette-wheel-container" id="wheelClickArea">
+                <div class="roulette-wheel-container">
                     <div class="roulette-outer">
                         <div class="roulette-ring" id="rouletteRing"></div>
                         <div class="roulette-ball" id="rouletteBall"></div>
                         <div class="roulette-center"></div>
                     </div>
                 </div>
-                <div class="roulette-result-num" id="resultNum"></div>
-                <div style="font-size:13px;opacity:0.6;" id="resultText">Выберите ставку и нажмите на колесо</div>
+                <div class="roulette-result-num" id="resultNum">?</div>
+                <div style="font-size:13px;opacity:0.6;" id="resultText">Выберите ставку и нажмите SPIN</div>
+                <button class="spin-btn" id="spinBtn">🎡 КРУТИТЬ</button>
             </div>
 
             <div class="game-area">
                 <div style="font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">Выберите ставку</div>
                 <div class="bet-buttons" id="betGrid">
-                    <button class="bet-option" data-bet="red">🟢 Зелёное ×2</button>
+                    <button class="bet-option" data-bet="red">🔴 Красное ×2</button>
                     <button class="bet-option" data-bet="black">⚫ Чёрное ×2</button>
-                    <button class="bet-option" data-bet="even">🔵 Чёт ×2</button>
-                    <button class="bet-option" data-bet="odd">🟣 Нечет ×2</button>
-                    <button class="bet-option" data-bet="zero">🟡 ZERO ×36</button>
+                    <button class="bet-option" data-bet="even">🟡 Чёт ×2</button>
+                    <button class="bet-option" data-bet="odd">🔵 Нечет ×2</button>
+                    <button class="bet-option" data-bet="zero">🟢 ZERO ×36</button>
                 </div>
 
                 <input type="number" id="betAmount" value="1" min="0.1" step="0.1" placeholder="Сумма ставки">
@@ -215,8 +208,8 @@
 
         <div class="center-banner" id="centerBanner"></div>
     </div>
-
-    <script>
+        <script>
+        // ═══════════════════════════════════════
         const tg = window.Telegram?.WebApp;
         let user = { id: 1167503795, username: 'player', firstName: 'Player' };
 
@@ -232,13 +225,15 @@
         const API = 'https://roulette-bot-8i8t.onrender.com';
         const WS_URL = API.replace('https','wss').replace('http','ws');
 
-        let state = { balance:0, freeSpins:0, totalGames:0, totalWins:0, gamesSinceWithdrawal:0, selectedBet:null, isSpinning:false, mode:'single', currentRoom:null, isCreator:false };
+        let state = { balance:0, freeSpins:0, totalGames:0, totalWins:0, gamesSinceWithdrawal:0, selectedBet:null, isSpinning:false, currentRoom:null, isCreator:false };
         let ws = null, wheelRotation = 0;
 
         const $ = s => document.querySelector(s);
         const $$ = s => document.querySelectorAll(s);
 
-        // Particles
+        // ═══════════════════════════════════════
+        // PARTICLES
+        // ═══════════════════════════════════════
         const canvas = $('#particleCanvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -261,13 +256,17 @@
         function animateParticles(){ctx.clearRect(0,0,canvas.width,canvas.height);particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animateParticles);}
         animateParticles();
 
-        // Audio
+        // ═══════════════════════════════════════
+        // AUDIO
+        // ═══════════════════════════════════════
         function playSpinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
         function playWinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
         function playLoseSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
         function spawnConfetti(){var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}
 
+        // ═══════════════════════════════════════
         // API
+        // ═══════════════════════════════════════
         async function api(endpoint,data={}){
             try{const r=await fetch(`${API}${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,...data})});
             if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||`HTTP ${r.status}`);}
@@ -286,81 +285,110 @@
         function toast(msg){const e=document.querySelector('.toast');if(e)e.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000)}
         function vibrate(ms){ms=ms||12;if(navigator.vibrate)navigator.vibrate(ms)}
 
-        // Tabs
-        $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');state.mode=b.dataset.tab;if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}vibrate()})});
+        function showBanner(text,type){
+            var b=$('#centerBanner');
+            b.innerHTML=text;b.className='center-banner '+type+' show';
+            clearTimeout(b._timeout);
+            b._timeout=setTimeout(function(){b.className='center-banner '+type},2200);
+        }
 
-        // Bet selection
-        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});b.classList.add('selected');if(b.dataset.bet==='red')b.classList.add('red-sel');if(b.dataset.bet==='black')b.classList.add('black-sel');state.selectedBet=b.dataset.bet;vibrate()})});
+        // ═══════════════════════════════════════
+        // TABS
+        // ═══════════════════════════════════════
+        $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}vibrate()})});
+
+        // ═══════════════════════════════════════
+        // BET SELECTION
+        // ═══════════════════════════════════════
+        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected')});b.classList.add('selected');state.selectedBet=b.dataset.bet;vibrate()})});
         $$('[data-quick]').forEach(function(b){b.addEventListener('click',function(){$('#betAmount').value=b.dataset.quick;vibrate()})});
         $('#freeSpinToggle').addEventListener('click',function(){if(state.freeSpins<=0){toast('Нет бесплатных спинов');return}this.classList.toggle('checked');vibrate()});
 
-        // Spin on wheel click
-        $('#wheelClickArea').addEventListener('click',async function(){
+        // ═══════════════════════════════════════
+        // ROULETTE SPIN
+        // ═══════════════════════════════════════
+        var rNumbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+        var reds=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+
+        function buildRouletteRing(){
+            var ring=$('#rouletteRing');
+            var slices=[];
+            rNumbers.forEach(function(num,i){
+                var color=num===0?'#27ae60':reds.includes(num)?'#e74c3c':'#2c3e50';
+                slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg');
+            });
+            ring.style.background='conic-gradient('+slices.join(',')+')';
+        }
+        buildRouletteRing();
+
+        $('#spinBtn').addEventListener('click',async function(){
             if(state.isSpinning)return;
-            if(!state.selectedBet){toast('Выберите ставку!');return}
+            if(!state.selectedBet){showBanner('❌ Сделайте ставку!','lose');return}
             var useFree=$('#freeSpinToggle').classList.contains('checked');
             var amount=parseFloat($('#betAmount').value)||0;
             if(!useFree&&amount<=0){toast('Введите сумму!');return}
             if(!useFree&&amount>state.balance){toast('Недостаточно средств!');return}
             if(useFree&&state.freeSpins<=0){toast('Нет бесплатных спинов!');return}
+
             state.isSpinning=true;
-            $('#wheelClickArea').style.opacity='0.85';
+            $('#spinBtn').disabled=true;
+            $('#spinBtn').textContent='🎡 ВРАЩЕНИЕ...';
             vibrate(30);
+
             try{
                 var result=await api('/api/game/place_bet',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
-                await spinWheel(result.number);
+                await spinWheelAnim(result.number);
                 state.balance=result.new_balance;
                 state.freeSpins=result.free_spins;
                 state.totalGames=result.games_played||(state.totalGames+1);
                 if(result.is_win)state.totalWins++;
                 state.gamesSinceWithdrawal=state.totalGames;
                 updateUI();
-                showBanner(result);
+                showGameResult(result);
                 $('#balanceCard').classList.add('wave');
                 setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
             }catch(e){toast('Ошибка игры');loadUser()}
             finally{
                 state.isSpinning=false;
-                $('#wheelClickArea').style.opacity='1';
+                $('#spinBtn').disabled=false;
+                $('#spinBtn').textContent='🎡 КРУТИТЬ';
                 $('#freeSpinToggle').classList.remove('checked');
             }
         });
 
-        function spinWheel(targetNum){
+        function spinWheelAnim(targetNum){
             return new Promise(function(resolve){
-                var ring=$('#rouletteRing');
-                var numbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-                var sector=360/37;
-                var idx=numbers.indexOf(targetNum);
-                var angle=sector*idx+sector/2;
-                var spins=5+Math.floor(Math.random()*5);
-                wheelRotation+=spins*360+(360-wheelRotation%360)+angle;
-                ring.style.transform='rotate('+wheelRotation+'deg)';
+                buildRouletteRing();
+                var ring=$('#rouletteRing'),ball=$('#rouletteBall'),rr=$('#resultNum');
+                var idx=rNumbers.indexOf(targetNum),extra=360*5,sliceDeg=360/37,wheelAngle=-(idx*sliceDeg+sliceDeg/2)-extra;
+                ring.style.transition='transform 5s cubic-bezier(0.17,0.89,0.32,1.25)';
+                ball.style.transition='all 5s cubic-bezier(0.17,0.89,0.32,1.25)';
+                ring.style.transform='rotate('+wheelAngle+'deg)';
+                ball.style.transform='rotate('+(-wheelAngle)+'deg)';
+                rr.innerHTML='🎡';
                 playSpinSound();
-                setTimeout(resolve,5000);
+                setTimeout(resolve,5200);
             });
         }
 
-        function showBanner(result){
-            var b=$('#centerBanner');
-            b.classList.remove('win','lose','show','hide');
-            void b.offsetWidth;
+        function showGameResult(result){
+            var colEmoji=result.color==='red'?'🔴':result.color==='black'?'⚫':'🟢';
+            $('#resultNum').innerHTML=colEmoji+' '+result.number;
+            var colorNames={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
+            $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+colorNames[result.color]+'</span>';
+
             if(result.is_win){
-                b.innerHTML='🎉<br>+'+result.win_amount.toFixed(2)+'$<br><span style="font-size:14px;">ПОБЕДА!</span>';
-                b.classList.add('win');spawnConfetti();playWinSound();
+                showBanner('🎉 ВЫИГРЫШ! +'+result.win_amount.toFixed(2)+'$','win');
+                spawnConfetti();playWinSound();
             }else{
-                b.innerHTML='😢<br>-'+($('#betAmount').value||'0')+'$<br><span style="font-size:14px;">Проигрыш</span>';
-                b.classList.add('lose');playLoseSound();
+                showBanner('😞 ПРОИГРЫШ','lose');
+                playLoseSound();
             }
-            b.classList.add('show');
-            var cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
-            $('#resultNum').textContent=result.number;
-            $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
-            $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
-            setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},2500);
         }
 
-        // WebSocket
+        // ═══════════════════════════════════════
+        // WEBSOCKET
+        // ═══════════════════════════════════════
         function connectWS(){
             if(ws&&ws.readyState===WebSocket.OPEN)return;
             try{
@@ -423,10 +451,8 @@
 
         function showMPResult(data){
             var isWin=data.winner_id===user.id;
-            var b=$('#centerBanner');b.classList.remove('win','lose','show','hide');void b.offsetWidth;
-            if(isWin){b.innerHTML='🏆<br>+'+(data.win_amount||0).toFixed(2)+'$';b.classList.add('win');spawnConfetti();playWinSound()}
-            else{b.innerHTML='😢<br>'+(data.winner_nickname||'Игрок');b.classList.add('lose');playLoseSound()}
-            b.classList.add('show');setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},3000);
+            if(isWin){showBanner('🏆 ВЫ ПОБЕДИЛИ! +'+(data.win_amount||0).toFixed(2)+'$','win');spawnConfetti();playWinSound()}
+            else{showBanner('😢 Победил: '+(data.winner_nickname||'Игрок'),'lose');playLoseSound()}
             loadUser();setTimeout(hideMyRoom,4000);
         }
 
@@ -435,10 +461,12 @@
         $('#startGameBtn').addEventListener('click',function(){if(!state.currentRoom||!state.isCreator)return;sendWS({action:'start_game',user_id:user.id,room_id:state.currentRoom})});
         $('#refreshRoomsBtn').addEventListener('click',function(){sendWS({action:'get_rooms'})});
 
-        // Init
+        // ═══════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════
         loadUser();
         var urlParams=new URLSearchParams(window.location.search);
-        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}}
+        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}}
         setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
         window.addEventListener('beforeunload',function(){if(state.currentRoom)try{sendWS({action:'leave_room',user_id:user.id,room_id:state.currentRoom})}catch(e){};if(ws)ws.close()});
     </script>
