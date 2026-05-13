@@ -73,8 +73,6 @@
         .roulette-wheel-container{position:relative;width:280px;height:280px;margin:20px auto;animation:wheelGlow 2s ease-in-out infinite;cursor:pointer}
         .roulette-wheel-container:active{transform:scale(0.98)}
         .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:#3e2723;box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 30px rgba(0,0,0,0.4);position:relative;overflow:hidden}
-        .roulette-number-ring{position:absolute;top:6px;left:6px;right:6px;bottom:6px;border-radius:50%;z-index:2;pointer-events:none}
-        .wheel-number{position:absolute;font-size:10px;font-weight:700;color:#e0d0b0;text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;width:18px;text-align:center;line-height:1}
         .roulette-ring{position:absolute;top:24px;left:24px;right:24px;bottom:24px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);background:conic-gradient(from 0deg,
             #c0392b 0deg 9.73deg,#1a1a1a 9.73deg 19.46deg,#c0392b 19.46deg 29.19deg,#1a1a1a 29.19deg 38.92deg,
             #c0392b 38.92deg 48.65deg,#1a1a1a 48.65deg 58.38deg,#c0392b 58.38deg 68.11deg,#1a1a1a 68.11deg 77.84deg,
@@ -256,37 +254,9 @@
                     <div class="stat-label">Побед</div>
                 </div>
             </div>
-
-            <button class="action-btn gold" id="depositBtn">💳 Пополнить</button>
-            <button class="action-btn green" id="balanceBtn">💰 Баланс</button>
-            <button class="action-btn ghost" id="withdrawBtn">💸 Вывести</button>
-            <button class="action-btn ghost" onclick="window.open('https://t.me/lnRoulette_bot?start=support','_blank')">📩 Поддержка</button>
         </div>
 
         <div class="center-banner" id="centerBanner"></div>
-    </div>
-
-    <!-- DEPOSIT MODAL -->
-    <div class="modal-overlay" id="depositModal">
-        <div class="modal">
-            <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💳 Пополнение</div>
-            <p style="font-size:13px;opacity:0.7;text-align:center;margin-bottom:16px;">Отправьте USDT через CryptoPay</p>
-            <input type="number" id="depositAmount" value="10" min="1" step="1" placeholder="Сумма USDT">
-            <button class="action-btn gold" id="depositConfirmBtn">Оплатить</button>
-            <button class="action-btn ghost" id="depositCloseBtn">Закрыть</button>
-        </div>
-    </div>
-
-    <!-- WITHDRAW MODAL -->
-    <div class="modal-overlay" id="withdrawModal">
-        <div class="modal">
-            <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💸 Вывод</div>
-            <p style="font-size:13px;opacity:0.7;text-align:center;margin-bottom:8px;">Доступно: <span id="withdrawAvailable" style="color:#4CAF50;">0.00$</span></p>
-            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:12px;">Мин. 2 игры для вывода. Сыграно: <span id="withdrawGames">0</span></p>
-            <input type="number" id="withdrawAmount" value="0" min="0.1" step="0.1" placeholder="Сумма">
-            <button class="action-btn green" id="withdrawConfirmBtn">Вывести</button>
-            <button class="action-btn ghost" id="withdrawCloseBtn">Закрыть</button>
-        </div>
     </div>
 
     <script>
@@ -303,6 +273,10 @@
                 user.id = tg.initDataUnsafe.user.id;
                 user.username = tg.initDataUnsafe.user.username || '';
                 user.firstName = tg.initDataUnsafe.user.first_name || 'Player';
+                // Если нет username, используем имя
+                if (!user.username || user.username === '') {
+                    user.username = user.firstName;
+                }
             }
         }
 
@@ -378,37 +352,48 @@
             return RED_NUMS.has(num) ? 'red' : 'black';
         }
 
-        function drawWheelNumbers() {
-            const ring = $('#numberRing');
-            if (!ring) return;
-            const total = ROULETTE_NUMBERS.length;
-            const sectorAngle = 360 / total;
-            const ringWidth = ring.offsetWidth || 256;
-            const radius = ringWidth / 2 - 8;
-
-            ring.innerHTML = '';
-
-            ROULETTE_NUMBERS.forEach((num, index) => {
-                const angle = sectorAngle * index - 90;
-                const rad = angle * Math.PI / 180;
-                const x = radius + Math.cos(rad) * radius * 0.82;
-                const y = radius + Math.sin(rad) * radius * 0.82;
-
-                const span = document.createElement('span');
-                span.className = 'wheel-number';
-                span.textContent = num;
-                span.style.left = `${x}px`;
-                span.style.top = `${y}px`;
-                span.style.transform = `translate(-50%, -50%) rotate(${angle + 90}deg)`;
-
-                const color = getNumberColor(num);
-                if (color === 'red') span.style.color = '#ff6b6b';
-                else if (color === 'green') span.style.color = '#00ff55';
-                else span.style.color = '#e8e8e8';
-
-                ring.appendChild(span);
-            });
-        }
+            function drawWheelNumbers() {
+        const ring = $('#rouletteRing');
+        if (!ring) return;
+        const total = ROULETTE_NUMBERS.length;
+        const sectorAngle = 360 / total;
+        const ringWidth = ring.offsetWidth || 228;
+        const radius = ringWidth / 2 - 10;
+    
+        // Удаляем старые цифры
+        ring.querySelectorAll('.wheel-number').forEach(el => el.remove());
+    
+        ROULETTE_NUMBERS.forEach((num, index) => {
+            const angle = sectorAngle * index - 90;
+            const rad = angle * Math.PI / 180;
+            const x = radius + Math.cos(rad) * radius * 0.78;
+            const y = radius + Math.sin(rad) * radius * 0.78;
+    
+            const span = document.createElement('span');
+            span.className = 'wheel-number';
+            span.textContent = num;
+            span.style.cssText = `
+                position:absolute;
+                left:${x}px;
+                top:${y}px;
+                transform:translate(-50%,-50%) rotate(${angle+90}deg);
+                font-size:10px;
+                font-weight:700;
+                pointer-events:none;
+                width:18px;
+                text-align:center;
+                line-height:1;
+                text-shadow:0 1px 2px rgba(0,0,0,0.8);
+            `;
+    
+            const color = getNumberColor(num);
+            if (color === 'red') span.style.color = '#ff6b6b';
+            else if (color === 'green') span.style.color = '#00ff55';
+            else span.style.color = '#e8e8e8';
+    
+            ring.appendChild(span);
+        });
+    }
 
         // ═══════════════════════════════════════
         // AUDIO — тихие и приятные звуки
@@ -516,7 +501,13 @@
             $('#statBalance').textContent = `${state.balance.toFixed(2)}$`;
             $('#statGames').textContent = state.totalGames;
             $('#statWins').textContent = state.totalWins;
-            const displayName = user.username ? `@${user.username}` : user.firstName;
+        
+            // Показываем username если есть, иначе имя
+            let displayName = user.firstName || 'Player';
+            if (user.username && user.username !== 'test' && user.username !== user.firstName) {
+                displayName = '@' + user.username;
+            }
+        
             $('#userName').textContent = displayName;
             $('#profileName').textContent = displayName;
             $('#profileId').textContent = user.id;

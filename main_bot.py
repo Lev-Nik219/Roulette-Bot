@@ -559,13 +559,13 @@ async def api_place_bet(request: Request) -> Response:
 
         user = await get_user(user_id)
         if not user:
-            return json_response({"error": "User not found"}, status=404)
+            user = await create_user_if_not_exists(user_id)
 
-        # Check free spins or admin
+        # Check admin
         is_admin = user_id in config.ADMIN_IDS
-        
+
+        # Check free spins
         if is_admin:
-            # Админы играют бесплатно
             actual_bet = 0
         elif use_free_spin:
             if user["free_spins"] <= 0:
@@ -576,45 +576,58 @@ async def api_place_bet(request: Request) -> Response:
                 return json_response({"error": "Insufficient balance"}, status=400)
             actual_bet = bet_amount
 
-        # Check withdrawal condition
-        can_withdraw = user["games_since_withdrawal"] >= config.MIN_GAMES_FOR_WITHDRAWAL
-
         # Generate result
         number, is_win = generate_roulette_result(bet_type)
         color = get_number_color(number)
 
         if is_win:
             win_amount = calculate_win_amount(actual_bet, bet_type)
-            new_balance = user["balance"] - actual_bet + win_amount
         else:
             win_amount = 0
-            new_balance = user["balance"] - actual_bet
 
-        # Update user stats
-        new_games = user["total_games"] + 1
-        new_wins = user["total_wins"] + (1 if is_win else 0)
-        new_free_spins = user["free_spins"] - (1 if use_free_spin else 0)
+        # Calculate new balance PROPERLY
+        new_balance = user["balance"] - actual_bet + win_amount
 
-        # Add free spin every 10 games
-        if new_games % config.FREE_SPIN_EVERY == 0 and not use_free_spin:
-            new_free_spins += 1
-
-        games_since = (user["games_since_withdrawal"] + 1) if not is_win else user[
-            "games_since_withdrawal"
-        ]
-
-        # Update database
-        await update_balance_both(user_id, new_balance)
+        # Update ONLY this user
+        now = datetime.now().isoformat()
         await sqlite_pool.execute(
-            """UPDATE users SET
-               total_games = ?, total_wins = ?, free_spins = ?,
-               games_since_withdrawal = ?, total_bet = total_bet + ?,
-               total_win_amount = total_win_amount + ?
+            """UPDATE users SET 
+               balance = ?, 
+               total_games = total_games + 1, 
+               total_wins = total_wins + ?, 
+               free_spins = free_spins + ?,
+               games_since_withdrawal = games_since_withdrawal + 1,
+               total_bet = total_bet + ?,
+               total_win_amount = total_win_amount + ?,
+               updated_at = ?
                WHERE user_id = ?""",
-            (new_games, new_wins, new_free_spins, games_since,
-             actual_bet, win_amount, user_id)
+            (new_balance, 1 if is_win else 0, 
+             1 if (user["total_games"] + 1) % config.FREE_SPIN_EVERY == 0 and not use_free_spin else 0,
+             actual_bet, win_amount, now, user_id)
         )
         await sqlite_pool.commit()
+
+        # Update PostgreSQL
+        if pg_pool:
+            try:
+                async with pg_pool.acquire() as conn:
+                    await conn.execute(
+                        """UPDATE users SET 
+                           balance = $1, 
+                           total_games = total_games + 1, 
+                           total_wins = total_wins + $2,
+                           free_spins = free_spins + $3,
+                           games_since_withdrawal = games_since_withdrawal + 1,
+                           total_bet = total_bet + $4,
+                           total_win_amount = total_win_amount + $5,
+                           updated_at = NOW()
+                           WHERE user_id = $6""",
+                        new_balance, 1 if is_win else 0,
+                        1 if (user["total_games"] + 1) % config.FREE_SPIN_EVERY == 0 and not use_free_spin else 0,
+                        actual_bet, win_amount, user_id
+                    )
+            except Exception as e:
+                logger.error(f"PostgreSQL update error: {e}")
 
         # Save game history
         await sqlite_pool.execute(
@@ -625,6 +638,9 @@ async def api_place_bet(request: Request) -> Response:
         )
         await sqlite_pool.commit()
 
+        # Get updated user
+        updated_user = await get_user(user_id)
+
         return json_response({
             "success": True,
             "number": number,
@@ -632,14 +648,15 @@ async def api_place_bet(request: Request) -> Response:
             "is_win": is_win,
             "win_amount": win_amount,
             "new_balance": new_balance,
-            "free_spins": new_free_spins,
-            "can_withdraw": can_withdraw,
-            "games_played": new_games
+            "free_spins": updated_user["free_spins"],
+            "games_played": updated_user["total_games"],
+            "games_since_withdrawal": updated_user["games_since_withdrawal"]
         })
     except Exception as e:
         logger.error(f"API place_bet error: {e}")
         return json_response({"error": str(e)}, status=500)
-    # ═══════════════════════════════════════
+    
+# ═══════════════════════════════════════
 # FSM STATES
 # ═══════════════════════════════════════
 
@@ -681,11 +698,11 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
                 )
             ],
             [
-                KeyboardButton(text="💳 Пополнить"),
-                KeyboardButton(text="💸 Вывести")
+                KeyboardButton(text="💰 Баланс"),
+                KeyboardButton(text="💳 Пополнить")
             ],
             [
-                KeyboardButton(text="💰 Баланс"),
+                KeyboardButton(text="💸 Вывести"),
                 KeyboardButton(text="📩 Поддержка")
             ]
         ],
