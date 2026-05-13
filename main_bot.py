@@ -1066,6 +1066,19 @@ async def on_startup():
     await init_sqlite()
     await init_postgres()
     asyncio.create_task(cleanup_old_rooms())
+    
+    # Keep-alive чтобы не засыпать
+    async def keep_alive():
+        while True:
+            await asyncio.sleep(240)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    await session.get(f"{config.API_URL}/health")
+            except: pass
+    asyncio.create_task(keep_alive())
+    
+    # Удаляем старый вебхук перед установкой нового
+    await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(url=config.WEBHOOK_URL, allowed_updates=["message","callback_query","inline_query"])
     logger.info(f"✅ Webhook set to {config.WEBHOOK_URL}")
     logger.info("✅ Bot started!")
@@ -1083,7 +1096,7 @@ async def on_shutdown():
     ws_connections.clear()
     mp_rooms.clear()
     user_active_rooms.clear()
-    await bot.delete_webhook()
+    # НЕ удаляем вебхук — новый экземпляр сам займёт
     await bot.session.close()
     await close_databases()
     logger.info("✅ Bot stopped")
