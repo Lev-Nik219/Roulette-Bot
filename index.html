@@ -181,10 +181,21 @@
 
         <!-- MULTIPLAYER GAME -->
         <div class="tab-content" id="tab-multiplayer">
-            <div class="game-area">
-                <div style="font-size:20px;font-weight:800;margin-bottom:4px;">👥 ДИНАМИЧЕСКАЯ РУЛЕТКА</div>
-                <div class="mp-timer" id="mpTimer">30</div>
-                <div class="mp-bank">Банк: <span id="mpBank">0.00</span>$</div>
+            <!-- Лобби -->
+            <div class="game-area" id="mpLobbyArea">
+                <div style="font-size:20px;font-weight:800;margin-bottom:10px;">👥 МУЛЬТИПЛЕЕР</div>
+                <input type="number" class="mp-bet-input" id="mpBetInput" value="1" min="1" step="0.1" placeholder="Сумма ставки ($)">
+                <button class="action-btn gold" id="mpCreateRoomBtn">🎯 СОЗДАТЬ КОМНАТУ</button>
+                <div style="margin-top:16px;font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;">Активные комнаты</div>
+                <div id="mpRoomsList"><div class="loading-spinner"></div></div>
+                <button class="action-btn ghost" id="mpRefreshRoomsBtn" style="margin-top:8px;">🔄 Обновить</button>
+            </div>
+
+            <!-- Комната -->
+            <div class="game-area hidden" id="mpRoomArea">
+                <div style="font-size:20px;font-weight:800;margin-bottom:4px;">👥 КОМНАТА #<span id="mpRoomId">---</span></div>
+                <div class="mp-timer" id="mpRoomTimer">30</div>
+                <div class="mp-bank">Банк: <span id="mpRoomBank">0.00</span>$</div>
 
                 <div class="mp-wheel-container">
                     <div class="mp-wheel-marker"></div>
@@ -192,11 +203,8 @@
                     <div class="mp-wheel-center">🎯</div>
                 </div>
 
-                <div class="mp-bet-input-row">
-                    <input type="number" class="mp-bet-input" id="mpBetInput" value="1" min="1" step="0.1" placeholder="Сумма ставки ($)">
-                    <button class="action-btn gold" id="mpPlaceBetBtn" style="width:auto;padding:12px 20px;">💰 Ставка</button>
-                </div>
                 <button class="action-btn green hidden" id="mpRaiseBetBtn">⬆️ Повысить ставку</button>
+                <button class="action-btn ghost" id="mpLeaveRoomBtn" style="color:#ff6b6b;">🚪 Выйти</button>
 
                 <div style="font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin-top:10px;">Лидерборд</div>
                 <div class="mp-leaderboard" id="mpLeaderboard">
@@ -389,39 +397,85 @@
 
         function handleWS(data){
             switch(data.type){
-                case 'mp_state':updateMPState(data);break;
-                case 'mp_player_joined':updateMPState(data);break;
-                case 'mp_bet_placed':updateMPState(data);break;
+                case 'mp_rooms_list':renderMPRooms(data.rooms||[]);break;
+                case 'mp_state':updateMPRoom(data);break;
                 case 'mp_timer':$('#mpTimer').textContent=data.time;break;
                 case 'mp_spinning':mpSpinWheel(data);break;
                 case 'mp_result':showMPResult(data);break;
-                case 'mp_round_reset':resetMPRound();break;
+                case 'mp_round_reset':resetMPRoom();break;
+                case 'mp_left_room':resetMPRoom();toast('Вы вышли из комнаты');break;
+                case 'connected':break;
                 case 'error':toast(data.message);break;
+                case 'pong':break;
             }
         }
 
         // ═══════════════════════════════════════
-        // MULTIPLAYER LOGIC
+        // MULTIPLAYER — КОМНАТЫ
         // ═══════════════════════════════════════
         var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];
         var mpWheelRotation=0;
+        var mpMyRoom=null; // ID комнаты где я сейчас
+        var mpIsCreator=false;
 
-        function updateMPState(data){
+        // Переключение вкладок внутри мультиплеера
+        var mpTab='lobby'; // lobby | room
+
+        function switchMPTab(tab){
+            mpTab=tab;
+            if(tab==='lobby'){
+                $('#mpLobbyArea').classList.remove('hidden');
+                $('#mpRoomArea').classList.add('hidden');
+                sendWS({action:'mp_get_rooms'});
+            }else{
+                $('#mpLobbyArea').classList.add('hidden');
+                $('#mpRoomArea').classList.remove('hidden');
+            }
+        }
+
+        function renderMPRooms(rooms){
+            var list=$('#mpRoomsList');
+            list.innerHTML='';
+            if(!rooms||!rooms.length){
+                list.innerHTML='<div style="text-align:center;opacity:0.4;padding:16px;">Нет активных комнат. Создайте свою!</div>';
+                return;
+            }
+            rooms.forEach(function(r){
+                var card=document.createElement('div');
+                card.className='room-card';
+                card.innerHTML='<div class="room-header"><span class="room-id">#'+r.room_id+'</span><span class="room-timer">⏱ '+(r.timer||0)+'с</span></div><div style="display:flex;justify-content:space-between;margin-top:6px;"><span>👥 '+(r.players_count||0)+'/6</span><span class="room-bank">💰 '+(r.bank||0).toFixed(2)+'$</span></div>';
+                card.addEventListener('click',function(){
+                    var amt=parseFloat($('#mpBetInput').value)||0;
+                    if(amt<1){toast('Минимальная ставка: 1$');return}
+                    if(amt>state.balance){toast('Недостаточно средств');return}
+                    sendWS({action:'mp_join_room',room_id:r.room_id,amount:amt,nickname:user.firstName||'Player'});
+                    mpMyRoom=r.room_id;
+                    mpIsCreator=false;
+                    state.balance-=amt;
+                    updateUI();
+                    switchMPTab('room');
+                    $('#mpPlaceBetBtn').disabled=true;
+                    setTimeout(function(){$('#mpPlaceBetBtn').disabled=false},2000);
+                });
+                list.appendChild(card);
+            });
+        }
+
+        function updateMPRoom(data){
+            if(!mpMyRoom) mpMyRoom=data.room_id;
+            $('#mpRoomId').textContent=data.room_id||mpMyRoom;
+            $('#mpRoomBank').textContent=(data.bank||0).toFixed(2);
+            $('#mpRoomTimer').textContent=data.timer||0;
             mpState.players=data.players||[];
             mpState.bank=data.bank||0;
             mpState.timer=data.timer||0;
             mpState.myBet=data.my_bet||0;
-            mpState.roundActive=data.round_active||false;
-
-            $('#mpBank').textContent=mpState.bank.toFixed(2);
-            $('#mpTimer').textContent=mpState.timer;
+            mpState.roundActive=data.round_active;
 
             if(mpState.myBet>0){
-                $('#mpPlaceBetBtn').classList.add('hidden');
                 $('#mpRaiseBetBtn').classList.remove('hidden');
                 $('#mpRaiseBetBtn').textContent='⬆️ Повысить ('+mpState.myBet.toFixed(2)+'$)';
             }else{
-                $('#mpPlaceBetBtn').classList.remove('hidden');
                 $('#mpRaiseBetBtn').classList.add('hidden');
             }
 
@@ -476,7 +530,6 @@
             mpWheelRotation+=spins*360+(360-mpWheelRotation%360)+targetDeg;
             ring.style.transform='rotate('+mpWheelRotation+'deg)';
             playSpinSound();
-            $('#mpPlaceBetBtn').disabled=true;
             $('#mpRaiseBetBtn').disabled=true;
         }
 
@@ -490,35 +543,38 @@
                 playLoseSound();
             }
             loadUser();
-            setTimeout(resetMPRound,4000);
+            setTimeout(resetMPRoom,4000);
         }
 
-        function resetMPRound(){
-            mpState={players:[],bank:0,timer:30,myBet:0,roundActive:false,winner:null};
-            $('#mpBank').textContent='0.00';
-            $('#mpTimer').textContent='30';
-            $('#mpPlaceBetBtn').classList.remove('hidden');
-            $('#mpPlaceBetBtn').disabled=false;
+        function resetMPRoom(){
+            mpState={players:[],bank:0,timer:30,myBet:0,roundActive:false};
+            mpMyRoom=null;
+            mpIsCreator=false;
+            $('#mpRoomId').textContent='---';
+            $('#mpRoomBank').textContent='0.00';
+            $('#mpRoomTimer').textContent='30';
             $('#mpRaiseBetBtn').classList.add('hidden');
             $('#mpRaiseBetBtn').disabled=false;
             $('#mpWheelRing').style.background='#1a1a1a';
             $('#mpWheelRing').style.transform='rotate(0deg)';
             mpWheelRotation=0;
             renderMPLeaderboard();
-            sendWS({action:'mp_join'});
+            switchMPTab('lobby');
+            sendWS({action:'mp_get_rooms'});
         }
 
-        // ═══════════════════════════════════════
-        // MP BUTTONS
-        // ═══════════════════════════════════════
-        $('#mpPlaceBetBtn').addEventListener('click',function(){
+        // Кнопки мультиплеера
+        $('#mpCreateRoomBtn').addEventListener('click',function(){
             var amt=parseFloat($('#mpBetInput').value)||0;
             if(amt<1){toast('Минимальная ставка: 1$');return}
             if(amt>state.balance){toast('Недостаточно средств');return}
-            sendWS({action:'mp_place_bet',amount:amt,nickname:user.firstName||'Player'});
-            $('#mpPlaceBetBtn').disabled=true;
-            $('#mpPlaceBetBtn').textContent='⏳';
-            setTimeout(function(){$('#mpPlaceBetBtn').disabled=false;$('#mpPlaceBetBtn').textContent='💰 Ставка'},2000);
+            sendWS({action:'mp_create_room',amount:amt,nickname:user.firstName||'Player'});
+            mpIsCreator=true;
+            state.balance-=amt;
+            updateUI();
+            switchMPTab('room');
+            $('#mpCreateRoomBtn').disabled=true;
+            setTimeout(function(){$('#mpCreateRoomBtn').disabled=false},2000);
         });
 
         $('#mpRaiseBetBtn').addEventListener('click',function(){
@@ -526,9 +582,20 @@
             if(extra<0.1){toast('Введите сумму повышения');return}
             var total=mpState.myBet+extra;
             if(total>state.balance){toast('Недостаточно средств');return}
-            sendWS({action:'mp_raise_bet',amount:extra});
+            sendWS({action:'mp_raise_bet',room_id:mpMyRoom,amount:extra});
             $('#mpRaiseBetBtn').disabled=true;
             setTimeout(function(){$('#mpRaiseBetBtn').disabled=false},2000);
+        });
+
+        $('#mpLeaveRoomBtn').addEventListener('click',function(){
+            if(!mpMyRoom)return;
+            sendWS({action:'mp_leave_room',room_id:mpMyRoom});
+            resetMPRoom();
+            loadUser();
+        });
+
+        $('#mpRefreshRoomsBtn').addEventListener('click',function(){
+            sendWS({action:'mp_get_rooms'});
         });
 
         // ═══════════════════════════════════════
