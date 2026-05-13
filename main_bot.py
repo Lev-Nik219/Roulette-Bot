@@ -147,6 +147,22 @@ async def init_sqlite():
         CREATE INDEX IF NOT EXISTS idx_rooms_status ON multiplayer_rooms(status);
     """)
     await sqlite_pool.commit()
+    
+    # Восстанавливаем данные из PostgreSQL если есть
+    if pg_pool:
+        try:
+            async with pg_pool.acquire() as conn:
+                pg_users = await conn.fetch("SELECT * FROM users")
+                for u in pg_users:
+                    await sqlite_pool.execute(
+                        "INSERT OR REPLACE INTO users (user_id, username, nickname, balance, total_games, total_wins, total_bet, total_win_amount, free_spins, games_since_withdrawal, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),NOW())",
+                        (u["user_id"], u["username"], u["nickname"], float(u["balance"]), u["total_games"], u["total_wins"], float(u["total_bet"]), float(u["total_win_amount"]), u["free_spins"], u["games_since_withdrawal"])
+                    )
+                await sqlite_pool.commit()
+                logger.info(f"✅ Restored {len(pg_users)} users from PostgreSQL")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not restore from PG: {e}")
+    
     logger.info("✅ SQLite initialized")
 
 async def init_postgres():
