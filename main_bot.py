@@ -696,14 +696,6 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
                     text="🎡 Играть в рулетку",
                     web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single")
                 )
-            ],
-            [
-                KeyboardButton(text="💰 Баланс"),
-                KeyboardButton(text="💳 Пополнить")
-            ],
-            [
-                KeyboardButton(text="💸 Вывести"),
-                KeyboardButton(text="📩 Поддержка")
             ]
         ],
         resize_keyboard=True,
