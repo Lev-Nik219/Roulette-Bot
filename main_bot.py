@@ -1947,16 +1947,6 @@ async def multiplayer_timer_checker():
 # API ENDPOINTS (REGISTRATION)
 # ═══════════════════════════════════════
 
-# Health check (GET)
-api_app.router.add_get("/health", api_health_check)
-
-# User endpoints (POST)
-api_app.router.add_post("/api/user/get", api_get_user)
-api_app.router.add_post("/api/user/update_nickname", api_update_nickname)
-
-# Game endpoints (POST)
-api_app.router.add_post("/api/game/place_bet", api_place_bet)
-
 # Multiplayer API endpoints
 async def api_get_rooms(request: Request) -> Response:
     """Получение списка активных комнат"""
@@ -2127,17 +2117,6 @@ async def api_crypto_pay_webhook(request: Request) -> Response:
         return json_response({"error": str(e)}, status=500)
 
 
-# Register API routes
-api_app.router.add_post("/api/multiplayer/rooms", api_get_rooms)
-api_app.router.add_post("/api/multiplayer/room_info", api_room_info)
-api_app.router.add_post("/api/user/history", api_transaction_history)
-api_app.router.add_post("/api/user/withdraw", api_withdraw_request)
-api_app.router.add_post("/api/crypto/webhook", api_crypto_pay_webhook)
-
-# WebSocket endpoint
-api_app.router.add_get("/ws", handle_websocket)
-
-
 # ═══════════════════════════════════════
 # MAIN APPLICATION SETUP
 # ═══════════════════════════════════════
@@ -2204,30 +2183,48 @@ def create_app() -> web.Application:
     """Создание aiohttp приложения"""
     app = web.Application()
 
-    # Add CORS middleware to main app
-    app.middlewares.append(cors_middleware)
+    # CORS middleware для всего приложения
+    @middleware
+    async def global_cors(request: Request, handler):
+        if request.method == "OPTIONS":
+            response = Response(status=204)
+        else:
+            response = await handler(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        return response
 
-    # Setup webhook handler
+    app.middlewares.append(global_cors)
+
+    # Health check на корневом уровне
+    async def health_handler(request):
+        return web.json_response({"status": "ok", "timestamp": datetime.now().isoformat()})
+
+    app.router.add_get("/health", health_handler)
+
+    # API endpoints регистрируем НА САМОМ app, а не на subapp
+    app.router.add_post("/api/user/get", api_get_user)
+    app.router.add_post("/api/user/update_nickname", api_update_nickname)
+    app.router.add_post("/api/user/history", api_transaction_history)
+    app.router.add_post("/api/user/withdraw", api_withdraw_request)
+    app.router.add_post("/api/game/place_bet", api_place_bet)
+    app.router.add_post("/api/multiplayer/rooms", api_get_rooms)
+    app.router.add_post("/api/multiplayer/room_info", api_room_info)
+    app.router.add_post("/api/crypto/webhook", api_crypto_pay_webhook)
+
+    # WebSocket
+    app.router.add_get("/ws", handle_websocket)
+
+    # Webhook для Telegram
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
     )
-
-    # Register webhook
     webhook_requests_handler.register(app, path=config.WEBHOOK_PATH)
 
-    # Setup application
     setup_application(app, dp, bot=bot)
-
-    # Mount API sub-app
-    app.add_subapp('/api/', api_app)
-    
-    # Отдельный health-check на корневом уровне
-    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "timestamp": datetime.now().isoformat()}))
-
-    # Startup/shutdown
-    app.on_startup.append(lambda app: on_startup())
-    app.on_shutdown.append(lambda app: on_shutdown())
 
     return app
 
@@ -2235,6 +2232,11 @@ def create_app() -> web.Application:
 if __name__ == "__main__":
     app = create_app()
     logger.info(f"Starting web server on {config.WEBHOOK_HOST}:{config.WEBHOOK_PORT}")
+
+    # Запускаем startup вручную
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(on_startup())
+
     web.run_app(
         app,
         host=config.WEBHOOK_HOST,
