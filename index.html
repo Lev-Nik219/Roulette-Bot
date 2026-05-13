@@ -444,7 +444,7 @@
                 else{showCenterBanner('😞 ПРОИГРЫШ -'+amount.toFixed(2)+'$','lose');playLoseSound();}
                 var cn={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
                 $('#resultNum').textContent=result.number;
-                $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
+                $('#resultNum').style.color=result.color==='red'?'#ff4444':result.color==='black'?'#e8e8e8':'#ffd700';
                 $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
                 $('#balanceCard').classList.add('wave');
                 setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
