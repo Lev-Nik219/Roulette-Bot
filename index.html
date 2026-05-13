@@ -321,7 +321,13 @@
             $$('.tab-content').forEach(function(x){x.classList.remove('active')});
             var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');
             state.mode=b.dataset.tab;
-            if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(function(){sendWS({action:'mp_join'})},500)}
+            if(b.dataset.tab==='multiplayer'){
+                connectWS();
+                setTimeout(function(){
+                    switchMPTab('lobby');
+                    sendWS({action:'mp_get_rooms'});
+                },500);
+            }
             vibrate();
         })});
 
@@ -378,6 +384,27 @@
                 ring.style.transform='rotate('+wheelRotation+'deg)';
                 playSpinSound();setTimeout(resolve,5000);
             });
+        }
+
+                // ═══════════════════════════════════════
+        // MULTIPLAYER — ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+        // ═══════════════════════════════════════
+        var mpMyRoom=null;
+        var mpIsCreator=false;
+
+        function switchMPTab(tab){
+            if(tab==='lobby'){
+                var lobby=$('#mpLobbyArea');
+                var room=$('#mpRoomArea');
+                if(lobby)lobby.classList.remove('hidden');
+                if(room)room.classList.add('hidden');
+                sendWS({action:'mp_get_rooms'});
+            }else{
+                var lobby=$('#mpLobbyArea');
+                var room=$('#mpRoomArea');
+                if(lobby)lobby.classList.add('hidden');
+                if(room)room.classList.remove('hidden');
+            }
         }
 
         // ═══════════════════════════════════════
