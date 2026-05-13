@@ -16,7 +16,6 @@ import shutil
 import aiohttp
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Tuple
-from collections import defaultdict
 import sqlite3
 import aiosqlite
 
@@ -71,6 +70,7 @@ class Config:
     MAX_WIN_PERCENTAGE = 0.47
     FREE_SPIN_EVERY = 10
     MIN_GAMES_FOR_WITHDRAWAL = 2
+    RATE_LIMIT_WINDOW = 2  # секунды между запросами
     ROULETTE_NUMBERS = list(range(37))
     RED_NUMBERS = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
     BLACK_NUMBERS = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
@@ -84,6 +84,17 @@ config = Config()
 
 sqlite_pool: Optional[aiosqlite.Connection] = None
 pg_pool: Optional[asyncpg.Pool] = None
+
+# Rate limiting
+user_last_request: Dict[int, float] = {}
+
+def check_rate_limit(user_id: int) -> bool:
+    now = time.time()
+    if user_id in user_last_request:
+        if now - user_last_request[user_id] < config.RATE_LIMIT_WINDOW:
+            return False
+    user_last_request[user_id] = now
+    return True
 
 def execute_sqlite_with_retry(max_retries=5, delay=0.1):
     def decorator(func):
@@ -148,7 +159,6 @@ async def init_sqlite():
     """)
     await sqlite_pool.commit()
     
-    # Восстанавливаем данные из PostgreSQL если есть
     if pg_pool:
         try:
             async with pg_pool.acquire() as conn:
@@ -245,33 +255,26 @@ def get_number_color(number: int) -> str:
     elif number in config.BLACK_NUMBERS: return "black"
     else: return "green"
 
-def generate_roulette_result(user_bet_type: str, force_win: bool = False) -> Tuple[int, bool]:
-    if force_win:
-        if user_bet_type == "red": number = random.choice(list(config.RED_NUMBERS))
-        elif user_bet_type == "black": number = random.choice(list(config.BLACK_NUMBERS))
-        elif user_bet_type == "zero": number = 0
-        elif user_bet_type == "even": number = random.choice([n for n in range(1,37) if n%2==0])
-        elif user_bet_type == "odd": number = random.choice([n for n in range(1,37) if n%2==1])
-        else:
-            try: number = int(user_bet_type)
-            except ValueError: number = random.randint(0,36)
-        return number, True
-    if random.random() <= config.MAX_WIN_PERCENTAGE:
-        return generate_roulette_result(user_bet_type, force_win=True)
-    else:
-        if user_bet_type in ["red","black"]:
-            losing = list(config.BLACK_NUMBERS)+[0] if user_bet_type=="red" else list(config.RED_NUMBERS)+[0]
-            number = random.choice(losing)
-        elif user_bet_type == "zero": number = random.choice(list(config.RED_NUMBERS)+list(config.BLACK_NUMBERS))
-        elif user_bet_type == "even": number = random.choice([n for n in range(1,37) if n%2==1]+[0])
-        elif user_bet_type == "odd": number = random.choice([n for n in range(1,37) if n%2==0]+[0])
-        else:
-            try:
-                target = int(user_bet_type)
-                all_nums = list(range(37)); all_nums.remove(target)
-                number = random.choice(all_nums)
-            except ValueError: number = random.randint(0,36)
-        return number, False
+# ИСПРАВЛЕНИЕ 2: Реалистичная рулетка — сначала число, потом проверка
+def generate_roulette_result(bet_type: str) -> Tuple[int, bool, str]:
+    """
+    Реалистичная рулетка: сначала выпадает случайное число (0-36),
+    потом проверяется выигрыш по типу ставки.
+    """
+    # Случайное число как в реальном казино
+    number = random.randint(0, 36)
+    color = get_number_color(number)
+    
+    # Проверка выигрыша
+    is_win = False
+    if bet_type == "red" and color == "red": is_win = True
+    elif bet_type == "black" and color == "black": is_win = True
+    elif bet_type == "zero" and number == 0: is_win = True
+    elif bet_type == "even" and number > 0 and number % 2 == 0: is_win = True
+    elif bet_type == "odd" and number > 0 and number % 2 == 1: is_win = True
+    elif bet_type.isdigit() and int(bet_type) == number: is_win = True
+    
+    return number, is_win, color
 
 def calculate_win_amount(bet_amount: float, bet_type: str) -> float:
     if bet_type == "zero" or (bet_type.isdigit() and 0 <= int(bet_type) <= 36): return bet_amount * 36
@@ -286,6 +289,11 @@ async def api_get_user(request: Request) -> Response:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         if not user_id: return json_response({"error": "user_id required"}, status=400)
+        
+        # Rate limit
+        if not check_rate_limit(user_id):
+            return json_response({"error": "Too many requests"}, status=429)
+        
         user = await get_user(user_id)
         if not user: return json_response({"error": "User not found"}, status=404)
         return json_response({
@@ -295,20 +303,26 @@ async def api_get_user(request: Request) -> Response:
         })
     except Exception as e: return json_response({"error": str(e)}, status=500)
 
+# ИСПРАВЛЕНИЕ 1: Админы могут играть без ввода суммы
 async def api_place_bet(request: Request) -> Response:
     try:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         bet_type = str(data.get("bet_type", ""))
-        bet_amount = float(data.get("bet_amount", 0))
+        bet_amount = float(data.get("bet_amount", 0) or 0)
         use_free_spin = data.get("use_free_spin", False)
         if not user_id or not bet_type: return json_response({"error": "Invalid parameters"}, status=400)
+
+        if not check_rate_limit(user_id):
+            return json_response({"error": "Too many requests"}, status=429)
 
         user = await get_user(user_id)
         if not user: user = await create_user_if_not_exists(user_id)
 
         is_admin = user_id in config.ADMIN_IDS
-        if is_admin: actual_bet = 0
+        
+        if is_admin:
+            actual_bet = 0
         elif use_free_spin:
             if user["free_spins"] <= 0: return json_response({"error": "No free spins"}, status=400)
             actual_bet = 0
@@ -317,16 +331,20 @@ async def api_place_bet(request: Request) -> Response:
             if user["balance"] < bet_amount: return json_response({"error": "Insufficient balance"}, status=400)
             actual_bet = bet_amount
 
-        number, is_win = generate_roulette_result(bet_type)
-        color = get_number_color(number)
+        # ИСПРАВЛЕНИЕ 2: Новый генератор
+        number, is_win, color = generate_roulette_result(bet_type)
         win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
         new_balance = user["balance"] - actual_bet + win_amount
 
         now = datetime.now().isoformat()
+        # ИСПРАВЛЕНИЕ 3: Бесплатный спин ТОЛЬКО если НЕ использован в этой игре
         add_free = 1 if (user["total_games"] + 1) % config.FREE_SPIN_EVERY == 0 and not use_free_spin else 0
+        # Если использован бесплатный спин — уменьшаем счётчик
+        new_free_spins = user["free_spins"] + add_free - (1 if use_free_spin else 0)
+        
         await sqlite_pool.execute(
-            "UPDATE users SET balance=?, total_games=total_games+1, total_wins=total_wins+?, free_spins=free_spins+?, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+?, total_win_amount=total_win_amount+?, updated_at=? WHERE user_id=?",
-            (new_balance, 1 if is_win else 0, add_free, actual_bet, win_amount, now, user_id)
+            "UPDATE users SET balance=?, total_games=total_games+1, total_wins=total_wins+?, free_spins=?, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+?, total_win_amount=total_win_amount+?, updated_at=? WHERE user_id=?",
+            (new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, now, user_id)
         )
         await sqlite_pool.commit()
 
@@ -334,8 +352,8 @@ async def api_place_bet(request: Request) -> Response:
             try:
                 async with pg_pool.acquire() as conn:
                     await conn.execute(
-                        "UPDATE users SET balance=$1, total_games=total_games+1, total_wins=total_wins+$2, free_spins=free_spins+$3, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+$4, total_win_amount=total_win_amount+$5, updated_at=NOW() WHERE user_id=$6",
-                        new_balance, 1 if is_win else 0, add_free, actual_bet, win_amount, user_id
+                        "UPDATE users SET balance=$1, total_games=total_games+1, total_wins=total_wins+$2, free_spins=$3, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+$4, total_win_amount=total_win_amount+$5, updated_at=NOW() WHERE user_id=$6",
+                        new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, user_id
                     )
             except Exception as e: logger.error(f"PG error: {e}")
 
@@ -346,6 +364,7 @@ async def api_place_bet(request: Request) -> Response:
         await sqlite_pool.commit()
 
         updated_user = await get_user(user_id)
+        logger.info(f"🎰 User {user_id}: bet={actual_bet}, number={number}, win={is_win}, amount={win_amount}, balance={new_balance}")
         return json_response({
             "success": True, "number": number, "color": color, "is_win": is_win,
             "win_amount": win_amount, "new_balance": new_balance,
@@ -371,13 +390,13 @@ async def api_withdraw_request(request: Request) -> Response:
         await update_balance_both(user_id, new_balance)
         await sqlite_pool.execute("INSERT INTO transactions (user_id, type, amount, description) VALUES (?,'withdraw',?,'Withdrawal')", (user_id, amount))
         await sqlite_pool.commit()
+        logger.info(f"💸 Withdrawal: user={user_id}, amount={amount}")
         for admin_id in config.ADMIN_IDS:
             try: await bot.send_message(admin_id, f"💸 Запрос на вывод\nПользователь: `{user_id}`\nСумма: {amount:.2f}$", parse_mode=ParseMode.MARKDOWN)
             except: pass
         return json_response({"success": True, "new_balance": new_balance})
     except Exception as e: return json_response({"error": str(e)}, status=500)
-
-# ═══════════════════════════════════════
+    # ═══════════════════════════════════════
 # FSM STATES
 # ═══════════════════════════════════════
 
@@ -513,6 +532,7 @@ async def admin_add_balance_execute(message: Message, state: FSMContext):
     await update_balance_both(target_id, new_balance)
     await sqlite_pool.execute("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, 'deposit', ?, 'Admin deposit')", (target_id, amount))
     await sqlite_pool.commit()
+    logger.info(f"💵 Admin {message.from_user.id} added {amount}$ to user {target_id}")
     await message.answer(f"✅ Начислено {amount:.2f}$ пользователю `{target_id}`\nНовый баланс: {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN, reply_markup=get_main_keyboard())
     await state.clear()
 
@@ -549,6 +569,7 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
     await update_balance_both(target_id, new_balance)
     await sqlite_pool.execute("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, 'withdraw', ?, 'Admin withdraw')", (target_id, amount))
     await sqlite_pool.commit()
+    logger.info(f"💸 Admin {message.from_user.id} removed {amount}$ from user {target_id}")
     await message.answer(f"✅ Списано {amount:.2f}$ у пользователя `{target_id}`\nНовый баланс: {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN, reply_markup=get_main_keyboard())
     await state.clear()
 
@@ -557,7 +578,7 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
 async def admin_players_list(callback: CallbackQuery):
     if callback.from_user.id not in config.ADMIN_IDS:
         await callback.answer("⛔ Доступ запрещён", show_alert=True); return
-    await callback.answer()  # ОТВЕЧАЕМ СРАЗУ
+    await callback.answer()
     
     async with sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users") as cursor:
         row = await cursor.fetchone()
@@ -575,7 +596,7 @@ async def admin_players_list(callback: CallbackQuery):
     try:
         await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
     except:
-        pass  # Игнорируем если сообщение не изменилось
+        pass
 
 # STATISTICS
 @admin_router.callback_query(F.data == "admin_stats")
@@ -791,8 +812,7 @@ async def cmd_cancel(message: Message, state: FSMContext):
 async def play_roulette_button(message: Message):
     await message.answer("🎡 *Рулетка открывается...*", parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎡 Открыть рулетку", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single"))]]))
-
-# ═══════════════════════════════════════
+    # ═══════════════════════════════════════
 # WEBSOCKET SERVER FOR MULTIPLAYER
 # ═══════════════════════════════════════
 
@@ -800,6 +820,9 @@ ws_connections: Dict[int, web.WebSocketResponse] = {}
 
 # Комнаты: room_id -> {players, bank, timer, status, timer_task, round_start}
 mp_rooms: Dict[str, Dict] = {}
+
+# ИСПРАВЛЕНИЕ 6: множество активных комнат игрока
+user_active_rooms: Dict[int, str] = {}
 
 MP_COLORS = ["#FF6B6B","#4ECDC4","#FFEAA7","#DDA0DD","#45B7D1","#96CEB4","#FF8C00","#F7DC6F"]
 
@@ -839,12 +862,18 @@ def build_room_state(room_id: str, my_user_id: int = None) -> Dict:
     }
 
 async def save_mp_bet_to_db(room_id: str, user_id: int, bet: float):
-    """Сохраняем ставку в БД на случай падения"""
     await sqlite_pool.execute(
         "INSERT INTO multiplayer_players (room_id, user_id, bet_amount, joined_at) VALUES (?,?,?,CURRENT_TIMESTAMP)",
         (room_id, user_id, bet)
     )
     await sqlite_pool.commit()
+
+async def return_bet_to_user(user_id: int, bet: float):
+    """Возврат ставки игроку"""
+    user = await get_user(user_id)
+    if user:
+        await update_balance_both(user_id, user["balance"] + bet)
+        logger.info(f"↩️ Returned {bet}$ to user {user_id}")
 
 async def mp_timer_task(room_id: str):
     """Таймер для конкретной комнаты"""
@@ -868,10 +897,12 @@ async def mp_timer_task(room_id: str):
     elif len(room["players"]) < config.MIN_PLAYERS_MULTIPLAYER:
         # Возвращаем ставки
         for uid, pdata in room["players"].items():
-            user = await get_user(uid)
-            if user:
-                await update_balance_both(uid, user["balance"] + pdata["bet"])
+            await return_bet_to_user(uid, pdata["bet"])
         await broadcast_to_room(room_id, {"type":"mp_round_reset"})
+        # Очищаем user_active_rooms
+        for uid in room["players"]:
+            if uid in user_active_rooms:
+                del user_active_rooms[uid]
         del mp_rooms[room_id]
 
 async def start_mp_game(room_id: str):
@@ -905,12 +936,13 @@ async def start_mp_game(room_id: str):
         await update_balance_both(winner_id, winner_user["balance"] + win_amount)
 
     # Сохраняем в БД
-    room_db_id = room_id
     await sqlite_pool.execute(
         "INSERT INTO multiplayer_rooms (room_id, status, bank, winner_id, commission, players_count) VALUES (?,'finished',?,?,?,?)",
-        (room_db_id, room["bank"], winner_id, commission, len(room["players"]))
+        (room_id, room["bank"], winner_id, commission, len(room["players"]))
     )
     await sqlite_pool.commit()
+
+    logger.info(f"🏆 Room {room_id}: winner={winner_id}, win_amount={win_amount}, commission={commission}")
 
     await broadcast_to_room(room_id, {
         "type":"mp_result","winner_id":winner_id,
@@ -919,9 +951,35 @@ async def start_mp_game(room_id: str):
     })
 
     await asyncio.sleep(3)
+    # Очищаем user_active_rooms
+    for uid in room["players"]:
+        if uid in user_active_rooms:
+            del user_active_rooms[uid]
     if room_id in mp_rooms:
         del mp_rooms[room_id]
     await broadcast_to_room(room_id, {"type":"mp_round_reset"})
+
+# Очистка старых комнат каждые 5 минут
+async def cleanup_old_rooms():
+    while True:
+        await asyncio.sleep(300)
+        now = time.time()
+        to_delete = []
+        for room_id, room in mp_rooms.items():
+            if now - room.get("round_start", now) > 600:  # 10 минут
+                to_delete.append(room_id)
+        for room_id in to_delete:
+            room = mp_rooms[room_id]
+            for uid, pdata in room["players"].items():
+                await return_bet_to_user(uid, pdata["bet"])
+                if uid in user_active_rooms:
+                    del user_active_rooms[uid]
+            if room["timer_task"]:
+                room["timer_task"].cancel()
+            del mp_rooms[room_id]
+            logger.info(f"🗑 Cleaned up old room {room_id}")
+        if to_delete:
+            logger.info(f"🗑 Cleaned up {len(to_delete)} old rooms")
 
 def get_room_players_list(room_id: str) -> List[Dict]:
     room = mp_rooms.get(room_id)
@@ -968,13 +1026,19 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         amount = float(data.get("amount", 0))
                         nickname = str(data.get("nickname", f"Player_{user_id}"))[:15]
 
+                        # ИСПРАВЛЕНИЕ 6: проверка что игрок ещё не в комнате
+                        if user_id in user_active_rooms:
+                            old_room = user_active_rooms[user_id]
+                            if old_room in mp_rooms and user_id in mp_rooms[old_room]["players"]:
+                                await ws.send_json({"type":"error","message":"Вы уже в комнате #"+old_room}); continue
+
                         if amount < 1:
                             await ws.send_json({"type":"error","message":"Минимум 1$"}); continue
                         user = await get_user(user_id)
                         if not user or user["balance"] < amount:
                             await ws.send_json({"type":"error","message":"Недостаточно средств"}); continue
 
-                        # Списываем
+                        # ИСПРАВЛЕНИЕ 4: списываем ставку
                         await update_balance_both(user_id, user["balance"] - amount)
 
                         room_id = secrets.token_hex(4).upper()
@@ -984,6 +1048,7 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                             "status": "waiting", "timer_task": None, "round_start": time.time()
                         }
                         current_room = room_id
+                        user_active_rooms[user_id] = room_id
                         await save_mp_bet_to_db(room_id, user_id, amount)
 
                         mp_rooms[room_id]["timer_task"] = asyncio.create_task(mp_timer_task(room_id))
@@ -996,6 +1061,16 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         amount = float(data.get("amount", 0))
                         nickname = str(data.get("nickname", f"Player_{user_id}"))[:15]
 
+                        # ИСПРАВЛЕНИЕ 6: проверка что игрок не в другой комнате
+                        if user_id in user_active_rooms:
+                            old_room = user_active_rooms[user_id]
+                            if old_room in mp_rooms and user_id in mp_rooms[old_room]["players"]:
+                                if old_room == room_id:
+                                    await ws.send_json({"type":"error","message":"Вы уже в этой комнате"}); continue
+                                else:
+                                    await ws.send_json({"type":"error","message":"Вы уже в комнате #"+old_room}); continue
+
+                        # ИСПРАВЛЕНИЕ 8: проверка что комната существует
                         room = mp_rooms.get(room_id)
                         if not room:
                             await ws.send_json({"type":"error","message":"Комната не найдена"}); continue
@@ -1015,6 +1090,7 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         room["players"][user_id] = {"bet":amount,"nickname":nickname,"color":get_mp_color(color_idx)}
                         room["bank"] += amount
                         current_room = room_id
+                        user_active_rooms[user_id] = room_id
                         await save_mp_bet_to_db(room_id, user_id, amount)
 
                         await broadcast_to_room(room_id, build_room_state(room_id), exclude_user=user_id)
@@ -1025,8 +1101,11 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         room_id = data.get("room_id")
                         extra = float(data.get("amount", 0))
 
+                        # ИСПРАВЛЕНИЕ 8: проверка что комната существует и не завершена
                         room = mp_rooms.get(room_id)
-                        if not room or user_id not in room["players"]:
+                        if not room:
+                            await ws.send_json({"type":"error","message":"Комната уже завершена"}); continue
+                        if user_id not in room["players"]:
                             await ws.send_json({"type":"error","message":"Вы не в игре"}); continue
                         if room["status"] != "waiting":
                             await ws.send_json({"type":"error","message":"Раунд уже идёт"}); continue
@@ -1042,6 +1121,14 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         if room["timer"] < 10:
                             room["timer"] += 15
 
+                        # Уведомление "Вас перебили"
+                        await broadcast_to_room(room_id, {
+                            "type":"mp_player_raised",
+                            "user_id":user_id,
+                            "nickname":room["players"][user_id]["nickname"],
+                            "new_bet":room["players"][user_id]["bet"]
+                        }, exclude_user=user_id)
+
                         await broadcast_to_room(room_id, build_room_state(room_id))
                         await ws.send_json(build_room_state(room_id, my_user_id=user_id))
 
@@ -1051,11 +1138,12 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         room = mp_rooms.get(room_id)
                         if room and user_id in room["players"]:
                             bet = room["players"][user_id]["bet"]
-                            user = await get_user(user_id)
-                            if user and room["status"] == "waiting":
-                                await update_balance_both(user_id, user["balance"] + bet)
+                            if room["status"] == "waiting":
+                                await return_bet_to_user(user_id, bet)
                             del room["players"][user_id]
                             room["bank"] -= bet
+                            if user_id in user_active_rooms:
+                                del user_active_rooms[user_id]
                             if not room["players"]:
                                 if room["timer_task"]: room["timer_task"].cancel()
                                 del mp_rooms[room_id]
@@ -1077,16 +1165,16 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
     finally:
         if user_id and user_id in ws_connections:
             del ws_connections[user_id]
-        # Возврат ставки при дисконнекте
+        # ИСПРАВЛЕНИЕ 4: возврат ставки при дисконнекте
         if current_room and user_id:
             room = mp_rooms.get(current_room)
             if room and user_id in room["players"] and room["status"] == "waiting":
                 bet = room["players"][user_id]["bet"]
-                user = await get_user(user_id)
-                if user:
-                    await update_balance_both(user_id, user["balance"] + bet)
+                await return_bet_to_user(user_id, bet)
                 del room["players"][user_id]
                 room["bank"] -= bet
+                if user_id in user_active_rooms:
+                    del user_active_rooms[user_id]
                 if not room["players"]:
                     if room["timer_task"]: room["timer_task"].cancel()
                     del mp_rooms[current_room]
@@ -1120,18 +1208,27 @@ async def on_startup():
             except: pass
     asyncio.create_task(keep_alive())
 
+    # Очистка старых комнат
+    asyncio.create_task(cleanup_old_rooms())
+
     await bot.set_webhook(url=config.WEBHOOK_URL, allowed_updates=["message","callback_query","inline_query"])
     logger.info(f"✅ Webhook set to {config.WEBHOOK_URL}")
     logger.info("✅ Bot started!")
 
 async def on_shutdown():
     logger.info("🛑 Shutting down...")
+    # Возвращаем все активные ставки
+    for room_id, room in list(mp_rooms.items()):
+        for uid, pdata in room["players"].items():
+            if room["status"] == "waiting":
+                await return_bet_to_user(uid, pdata["bet"])
     for uid, ws in list(ws_connections.items()):
         if not ws.closed:
             try: await ws.close(code=1001, message="Server shutting down")
             except: pass
     ws_connections.clear()
     mp_rooms.clear()
+    user_active_rooms.clear()
     await bot.delete_webhook()
     await bot.session.close()
     await close_databases()
@@ -1152,12 +1249,10 @@ def create_app() -> web.Application:
 
     app.middlewares.append(global_cors)
 
-    # Webhook ДО того как добавляем свои роуты
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path=config.WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
 
-    # Свои роуты ПОСЛЕ webhook
     async def health_handler(request):
         return web.json_response({"status":"ok","timestamp":datetime.now().isoformat()})
 
