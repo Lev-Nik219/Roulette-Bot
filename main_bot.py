@@ -373,7 +373,6 @@ async def api_get_user(request: Request) -> Response:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         
-        # Валидация initData (опционально — в продакшене включить)
         init_data = data.get("init_data", "")
         if init_data:
             validated = validate_telegram_init_data(init_data)
@@ -387,6 +386,8 @@ async def api_get_user(request: Request) -> Response:
         user = await get_user(user_id)
         if not user:
             user = await create_user_if_not_exists(user_id)
+        
+        logger.info(f"📡 API get_user: user_id={user_id}, balance={user['balance']:.2f}$")
         
         return json_response({
             "user_id": user["user_id"], "username": user["username"], "balance": user["balance"],
