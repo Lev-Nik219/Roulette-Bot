@@ -1092,6 +1092,12 @@ def create_app() -> web.Application:
 
     app.middlewares.append(global_cors)
 
+    # Webhook ДО того как добавляем свои роуты
+    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_requests_handler.register(app, path=config.WEBHOOK_PATH)
+    setup_application(app, dp, bot=bot)
+
+    # Свои роуты ПОСЛЕ webhook
     async def health_handler(request):
         return web.json_response({"status":"ok","timestamp":datetime.now().isoformat()})
 
@@ -1100,10 +1106,6 @@ def create_app() -> web.Application:
     app.router.add_post("/api/game/place_bet", api_place_bet)
     app.router.add_post("/api/user/withdraw", api_withdraw_request)
     app.router.add_get("/ws", handle_websocket)
-
-    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-    webhook_requests_handler.register(app, path=config.WEBHOOK_PATH)
-    setup_application(app, dp, bot=bot)
 
     return app
 
