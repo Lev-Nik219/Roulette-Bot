@@ -1368,10 +1368,8 @@ async def cmd_start(message: Message):
     username = message.from_user.username or ''
     full_name = message.from_user.full_name
 
-    # Create user if not exists
     user = await create_user_if_not_exists(user_id, username)
 
-    # Приветственное сообщение
     welcome_text = (
         f"🎡 *Добро пожаловать в 𝑹𝒐𝒖𝒍𝒆𝒕𝒕𝒆, {full_name}!*\n\n"
         f"🆔 Ваш ID: `{user_id}`\n"
@@ -1385,12 +1383,68 @@ async def cmd_start(message: Message):
         f"🎰 Удачной игры!"
     )
 
+    # Кнопки под сообщением
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Пополнить", callback_data="deposit_info"),
+         InlineKeyboardButton(text="💸 Вывести", callback_data="withdraw_info")],
+        [InlineKeyboardButton(text="💰 Баланс", callback_data="check_balance"),
+         InlineKeyboardButton(text="📩 Поддержка", callback_data="support_start")]
+    ])
+
     await message.answer(
         welcome_text,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=get_main_keyboard()
+        reply_markup=kb
     )
 
+@user_router.callback_query(F.data == "deposit_info")
+async def deposit_info_cb(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
+        "💳 *Пополнение баланса*\n\n"
+        "Для пополнения используйте CryptoPay (USDT):\n"
+        f"• Отправьте USDT через CryptoBot\n"
+        f"• Укажите ваш ID: `{callback.from_user.id}`\n"
+        f"• Баланс зачислится автоматически",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+@user_router.callback_query(F.data == "withdraw_info")
+async def withdraw_info_cb(callback: CallbackQuery):
+    await callback.answer()
+    user = await get_user(callback.from_user.id)
+    if not user:
+        user = await create_user_if_not_exists(callback.from_user.id)
+    games_needed = max(0, config.MIN_GAMES_FOR_WITHDRAWAL - user["games_since_withdrawal"])
+    if games_needed > 0:
+        await callback.message.answer(
+            f"💸 *Вывод средств*\n\n⚠️ Нужно сыграть ещё {games_needed} игр\n💰 Баланс: {user['balance']:.2f}$",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    else:
+        await callback.message.answer(
+            f"💸 *Вывод средств*\n\n✅ Доступен!\n💰 Баланс: {user['balance']:.2f}$\nНапишите в поддержку для вывода.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+@user_router.callback_query(F.data == "check_balance")
+async def check_balance_cb(callback: CallbackQuery):
+    await callback.answer()
+    user = await get_user(callback.from_user.id)
+    if not user:
+        user = await create_user_if_not_exists(callback.from_user.id)
+    await callback.message.answer(
+        f"💰 Баланс: {user['balance']:.2f}$\n🎁 Спинов: {user['free_spins']}\n🎮 Игр: {user['total_games']}\n🏆 Побед: {user['total_wins']}"
+    )
+
+@user_router.callback_query(F.data == "support_start")
+async def support_start_cb(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await callback.message.answer(
+        "📩 *Поддержка*\n\nОпишите вашу проблему, и мы ответим.\nДля отмены: /cancel",
+        parse_mode=ParseMode.MARKDOWN
+    )
+    await state.set_state(SupportStates.waiting_for_message)
 
 @user_router.message(Command("myid"))
 async def cmd_myid(message: Message):
