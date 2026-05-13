@@ -878,6 +878,8 @@ async def cmd_start(message: Message):
     ])
 
     await message.answer(welcome_text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
+    # Принудительно отправляем reply-клавиатуру
+    await message.answer("🎡 Используйте кнопку ниже для игры:", reply_markup=get_main_keyboard())
 
 @user_router.callback_query(F.data == "deposit_info")
 async def deposit_info_cb(callback: CallbackQuery):
