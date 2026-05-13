@@ -1108,7 +1108,7 @@ async def on_shutdown():
             try: await ws.close(code=1001, message="Server shutting down")
             except: pass
     ws_connections.clear()
-    mp_round["players"] = {}
+    mp_rooms.clear()
     await bot.delete_webhook()
     await bot.session.close()
     await close_databases()
