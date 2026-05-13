@@ -560,8 +560,13 @@ async def api_place_bet(request: Request) -> Response:
         if not user:
             return json_response({"error": "User not found"}, status=404)
 
-        # Check free spins
-        if use_free_spin:
+        # Check free spins or admin
+        is_admin = user_id in config.ADMIN_IDS
+        
+        if is_admin:
+            # Админы играют бесплатно
+            actual_bet = 0
+        elif use_free_spin:
             if user["free_spins"] <= 0:
                 return json_response({"error": "No free spins available"}, status=400)
             actual_bet = 0
@@ -1351,7 +1356,7 @@ async def cmd_start(message: Message):
 
     # Приветственное сообщение
     welcome_text = (
-        f"🎡 *Добро пожаловать в LN Roulette, {full_name}!*\n\n"
+        f"🎡 *Добро пожаловать в Roulette\\_Bot, {full_name}!*\n\n"
         f"🆔 Ваш ID: `{user_id}`\n"
         f"💰 Баланс: {user['balance']:.2f}$\n"
         f"🎁 Бесплатных спинов: {user['free_spins']}\n\n"
@@ -1359,7 +1364,7 @@ async def cmd_start(message: Message):
         f"• 🎡 Одиночная рулетка — ставки на цвет, число, чёт/нечет\n"
         f"• 👥 Мультиплеер — играйте против других игроков!\n\n"
         f"💎 Выигрывайте до ×36 от ставки!\n"
-        f"📊 Ваш процент побед ограничен 47% — играйте ответственно.\n\n"
+        f"📊 Играйте ответственно.\n\n"
         f"Выберите режим игры на клавиатуре ниже 👇"
     )
 
@@ -1393,7 +1398,6 @@ async def show_balance(message: Message):
         f"💰 *Ваш баланс*\n\n"
         f"💵 Баланс: {user['balance']:.2f}$\n"
         f"🎁 Бесплатных спинов: {user['free_spins']}\n"
-        f"🎮 Сыграно игр: {user['total_games']}\n"
         f"🏆 Побед: {user['total_wins']}\n\n"
         f"💳 Для пополнения используйте CryptoPay (USDT)\n"
         f"⚠️ Вывод доступен после {config.MIN_GAMES_FOR_WITHDRAWAL} игр",

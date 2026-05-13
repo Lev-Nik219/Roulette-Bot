@@ -4,33 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a1a0a">
-    <title>🎡 LN Roulette</title>
+    <title>🎡 ROULETTE</title>
 
-    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
         :root {
-            --bg-dark: #0a1a0a;
-            --bg-darker: #061206;
-            --green-primary: #1a4a1a;
-            --green-light: #2d7a2d;
-            --gold: #ffd700;
-            --gold-dark: #b8960f;
-            --red: #e63946;
-            --red-dark: #b71c2c;
+            --bg-dark: #0d1b0d;
+            --bg-darker: #060f06;
+            --green-primary: #0f3d0f;
+            --green-light: #1a6b1a;
+            --gold: #f0c850;
+            --gold-dark: #a07820;
+            --gold-light: #ffe9a0;
+            --red: #d4343e;
+            --red-dark: #8b1a22;
             --black: #1a1a1a;
-            --white: #f0f0f0;
-            --glass-bg: rgba(20, 40, 20, 0.6);
-            --glass-border: rgba(255, 215, 0, 0.2);
-            --glass-blur: blur(15px);
-            --neon-green: #00ff41;
+            --white: #f5f5f5;
+            --glass-bg: rgba(15, 40, 15, 0.55);
+            --glass-border: rgba(240, 200, 80, 0.25);
+            --glass-blur: blur(20px);
+            --neon-green: #00ff55;
             --neon-gold: #ffd700;
-            --text-primary: #e8e8e8;
-            --text-secondary: #b0b0b0;
-            --shadow-gold: 0 0 20px rgba(255, 215, 0, 0.3);
-            --radius: 20px;
-            --radius-sm: 12px;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --shadow-gold: 0 0 25px rgba(240, 200, 80, 0.25);
+            --radius: 22px;
+            --radius-sm: 14px;
+            --radius-xs: 10px;
             --font-main: 'Segoe UI', 'Roboto', system-ui, -apple-system, sans-serif;
         }
 
@@ -74,23 +75,12 @@
         }
 
         @keyframes floatUp {
-            0% {
-                transform: translateY(110vh) scale(0);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.8;
-            }
-            90% {
-                opacity: 0.3;
-            }
-            100% {
-                transform: translateY(-10vh) scale(1.5);
-                opacity: 0;
-            }
+            0% { transform: translateY(110vh) scale(0); opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.2; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
         }
 
-        /* ─── ФОН С ГРАДИЕНТОМ ─── */
         .bg-gradient {
             position: fixed;
             top: 0;
@@ -98,14 +88,13 @@
             width: 100%;
             height: 100%;
             background:
-                radial-gradient(ellipse at 50% 0%, rgba(26, 74, 26, 0.4) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 80%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 20% 20%, rgba(0, 255, 65, 0.05) 0%, transparent 50%);
+                radial-gradient(ellipse at 50% 0%, rgba(15, 60, 15, 0.5) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(240, 200, 80, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 20% 20%, rgba(0, 255, 85, 0.04) 0%, transparent 50%);
             pointer-events: none;
             z-index: 0;
         }
 
-        /* ─── ОСНОВНОЙ КОНТЕЙНЕР ─── */
         .app-container {
             position: relative;
             z-index: 1;
@@ -118,36 +107,36 @@
         /* ─── HEADER ─── */
         .header {
             text-align: center;
-            padding: 20px 0 10px;
+            padding: 16px 0 8px;
         }
 
         .header-logo {
-            font-size: 42px;
+            font-size: 44px;
             animation: bounceLogo 2s ease-in-out infinite;
             display: block;
         }
 
         @keyframes bounceLogo {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-8px); }
         }
 
         .header-title {
-            font-size: 28px;
+            font-size: 30px;
             font-weight: 900;
-            background: linear-gradient(180deg, #ffd700 0%, #ff8c00 50%, #ffd700 100%);
+            background: linear-gradient(180deg, #ffe9a0 0%, #c89030 40%, #f0c850 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: none;
-            filter: drop-shadow(0 2px 4px rgba(255, 215, 0, 0.3));
-            margin-top: 5px;
+            filter: drop-shadow(0 2px 4px rgba(200, 150, 50, 0.4));
+            margin-top: 4px;
+            letter-spacing: 1px;
         }
 
         .header-subtitle {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-secondary);
-            letter-spacing: 3px;
+            letter-spacing: 4px;
             text-transform: uppercase;
             margin-top: 2px;
         }
@@ -160,12 +149,12 @@
             border: 1px solid var(--glass-border);
             border-radius: var(--radius);
             padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
         }
 
         .glass-panel-sm {
-            padding: 15px;
+            padding: 14px;
             margin-bottom: 10px;
         }
 
@@ -180,19 +169,19 @@
 
         .balance-item {
             flex: 1;
-            min-width: 100px;
+            min-width: 90px;
             text-align: center;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.35);
             border-radius: var(--radius-sm);
-            padding: 12px 10px;
-            border: 1px solid rgba(255, 215, 0, 0.15);
+            padding: 12px 8px;
+            border: 1px solid rgba(240, 200, 80, 0.12);
         }
 
         .balance-label {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
         }
 
         .balance-value {
@@ -211,15 +200,15 @@
         .tabs {
             display: flex;
             gap: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 14px;
         }
 
         .tab-btn {
             flex: 1;
             padding: 12px;
             border-radius: var(--radius-sm);
-            border: 1px solid var(--glass-border);
-            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(240, 200, 80, 0.15);
+            background: rgba(0, 0, 0, 0.35);
             color: var(--text-secondary);
             font-size: 14px;
             font-weight: 600;
@@ -229,9 +218,9 @@
         }
 
         .tab-btn.active {
-            background: linear-gradient(135deg, rgba(26, 74, 26, 0.8), rgba(45, 122, 45, 0.6));
+            background: linear-gradient(135deg, rgba(15, 60, 15, 0.8), rgba(26, 107, 26, 0.5));
             border-color: var(--gold);
-            color: var(--gold);
+            color: var(--gold-light);
             box-shadow: var(--shadow-gold);
         }
 
@@ -239,102 +228,112 @@
             transform: scale(0.96);
         }
 
-        /* ─── КОЛЕСО РУЛЕТКИ ─── */
-        .wheel-container {
+        /* ─── НОВОЕ КОЛЕСО РУЛЕТКИ ─── */
+        .wheel-wrapper {
             position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 20px auto;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
         }
 
-        .wheel-outer {
+        .wheel-outer-ring {
             position: absolute;
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            border: 8px solid #2a1a0a;
+            background: radial-gradient(circle, #3a2a0a 60%, #1a0f00 100%);
+            border: 6px solid #4a3520;
             box-shadow:
-                0 0 30px rgba(0, 0, 0, 0.5),
-                inset 0 0 20px rgba(0, 0, 0, 0.3),
-                0 0 60px rgba(255, 215, 0, 0.15);
-            overflow: hidden;
+                0 0 40px rgba(0, 0, 0, 0.6),
+                inset 0 0 30px rgba(0, 0, 0, 0.5),
+                0 0 80px rgba(200, 150, 50, 0.15);
         }
 
-        .wheel-inner {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: conic-gradient(
-                from 0deg,
-                #e63946 0deg 9.73deg, #1a1a1a 9.73deg 19.46deg,
-                #e63946 19.46deg 29.19deg, #1a1a1a 29.19deg 38.92deg,
-                #e63946 38.92deg 48.65deg, #1a1a1a 48.65deg 58.38deg,
-                #e63946 58.38deg 68.11deg, #1a1a1a 68.11deg 77.84deg,
-                #e63946 77.84deg 87.57deg, #1a1a1a 87.57deg 97.30deg,
-                #e63946 97.30deg 107.03deg, #1a1a1a 107.03deg 116.76deg,
-                #e63946 116.76deg 126.49deg, #1a1a1a 126.49deg 136.22deg,
-                #e63946 136.22deg 145.95deg, #1a1a1a 145.95deg 155.68deg,
-                #e63946 155.68deg 165.41deg, #1a1a1a 165.41deg 175.14deg,
-                #e63946 175.14deg 184.87deg, #1a1a1a 184.87deg 194.60deg,
-                #00a651 194.60deg 204.33deg,
-                #1a1a1a 204.33deg 214.06deg, #e63946 214.06deg 223.79deg,
-                #1a1a1a 223.79deg 233.52deg, #e63946 233.52deg 243.25deg,
-                #1a1a1a 243.25deg 252.98deg, #e63946 252.98deg 262.71deg,
-                #1a1a1a 262.71deg 272.44deg, #e63946 272.44deg 282.17deg,
-                #1a1a1a 282.17deg 291.90deg, #e63946 291.90deg 301.63deg,
-                #1a1a1a 301.63deg 311.36deg, #e63946 311.36deg 321.09deg,
-                #1a1a1a 321.09deg 330.82deg, #e63946 330.82deg 340.55deg,
-                #1a1a1a 340.55deg 350.28deg, #e63946 350.28deg 360deg
-            );
-            transition: transform 5s cubic-bezier(0.25, 0.1, 0.1, 1);
-            position: relative;
-        }
-
-        .wheel-inner.spinning {
-            transition: transform 5s cubic-bezier(0.25, 0.1, 0.1, 1);
-        }
-
-        .wheel-center {
+        .wheel-numbers-ring {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle, #ffd700, #b8960f);
+            width: 94%;
+            height: 94%;
+            top: 3%;
+            left: 3%;
             border-radius: 50%;
-            border: 4px solid #2a1a0a;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            background: #1a1008;
+            border: 3px solid #3a2a15;
+        }
+
+        .wheel-number {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 700;
+            color: #e0d0b0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            transform-origin: center center;
+            pointer-events: none;
+        }
+
+        .wheel-colored-ring {
+            position: absolute;
+            width: 82%;
+            height: 82%;
+            top: 9%;
+            left: 9%;
+            border-radius: 50%;
+            transition: transform 5s cubic-bezier(0.25, 0.1, 0.1, 1);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+        }
+
+        .wheel-colored-ring.spinning {
+            transition: transform 5s cubic-bezier(0.25, 0.1, 0.1, 1);
+        }
+
+        .wheel-inner-circle {
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            top: 35%;
+            left: 35%;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffe9a0, #c89030);
+            border: 3px solid #3a2a15;
+            box-shadow: 0 0 30px rgba(240, 200, 80, 0.4);
             z-index: 2;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 30px;
         }
 
-        /* Маркер (указатель) */
         .wheel-marker {
             position: absolute;
-            top: -12px;
+            top: -10px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 14px solid transparent;
-            border-right: 14px solid transparent;
-            border-top: 24px solid #ffd700;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 22px solid #ffe9a0;
             z-index: 3;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
         }
 
-        .wheel-number-display {
+        .wheel-result-display {
             text-align: center;
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 12px;
+            font-size: 13px;
             color: var(--text-secondary);
+            min-height: 20px;
         }
 
-        /* ─── СТАВКИ ─── */
+        /* ─── БЛОК СТАВОК (НОВЫЙ ДИЗАЙН) ─── */
+        .bet-section-title {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
         .bet-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -342,16 +341,17 @@
         }
 
         .bet-btn {
-            padding: 14px;
-            border-radius: var(--radius-sm);
+            padding: 13px 10px;
+            border-radius: var(--radius-xs);
             border: 2px solid transparent;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
             position: relative;
             overflow: hidden;
+            letter-spacing: 0.5px;
         }
 
         .bet-btn:active {
@@ -359,129 +359,196 @@
         }
 
         .bet-btn.red {
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
-            color: white;
-            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #a8202a, #d4343e);
+            color: #fff;
+            border-color: rgba(255, 100, 100, 0.3);
         }
 
         .bet-btn.black {
             background: linear-gradient(135deg, #1a1a1a, #333);
-            color: white;
-            border-color: #555;
+            color: #ddd;
+            border-color: rgba(180, 180, 180, 0.3);
         }
 
         .bet-btn.green {
-            background: linear-gradient(135deg, #006837, #00a651);
-            color: white;
-            border-color: #00ff41;
+            background: linear-gradient(135deg, #005a28, #008840);
+            color: #fff;
+            border-color: rgba(0, 255, 100, 0.3);
             grid-column: 1 / -1;
         }
 
         .bet-btn.even {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            color: white;
-            border-color: #5d9cec;
+            background: linear-gradient(135deg, #1e3050, #2a4570);
+            color: #fff;
+            border-color: rgba(100, 160, 220, 0.3);
         }
 
         .bet-btn.odd {
-            background: linear-gradient(135deg, #8e44ad, #9b59b6);
-            color: white;
-            border-color: #c39bdb;
+            background: linear-gradient(135deg, #502050, #703570);
+            color: #fff;
+            border-color: rgba(200, 140, 200, 0.3);
         }
 
         .bet-btn.number {
-            background: linear-gradient(135deg, #d4a017, #f0c040);
-            color: #1a1a1a;
-            border-color: #ffd700;
+            background: linear-gradient(135deg, #b89020, #e0b840);
+            color: #1a1008;
+            border-color: rgba(240, 200, 80, 0.5);
             grid-column: 1 / -1;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .bet-btn.selected {
-            border-color: #ffd700 !important;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.3) !important;
-            animation: pulseGold 1s ease-in-out infinite;
+            border-color: #ffe9a0 !important;
+            box-shadow: 0 0 24px rgba(240, 200, 80, 0.5), 0 0 48px rgba(240, 200, 80, 0.2) !important;
+            animation: pulseGold 1.5s ease-in-out infinite;
         }
 
         @keyframes pulseGold {
-            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
-            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.9), 0 0 60px rgba(255, 215, 0, 0.4); }
+            0%, 100% { box-shadow: 0 0 20px rgba(240, 200, 80, 0.5); }
+            50% { box-shadow: 0 0 36px rgba(240, 200, 80, 0.8), 0 0 56px rgba(240, 200, 80, 0.3); }
         }
 
-        /* ─── ИНПУТ СТАВКИ ─── */
-        .bet-input-row {
+        /* ─── ПОЛЕ ВВОДА СТАВКИ (НОВЫЙ ДИЗАЙН) ─── */
+        .bet-input-container {
             display: flex;
-            gap: 8px;
             align-items: center;
-            margin-top: 10px;
+            gap: 10px;
+            margin-top: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 6px;
+            border: 1px solid rgba(240, 200, 80, 0.15);
+        }
+
+        .bet-input-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding-left: 8px;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
         }
 
         .bet-input {
             flex: 1;
-            padding: 12px 16px;
-            border-radius: var(--radius-sm);
-            border: 2px solid var(--glass-border);
+            padding: 10px 12px;
+            border-radius: var(--radius-xs);
+            border: none;
             background: rgba(0, 0, 0, 0.4);
-            color: var(--gold);
+            color: var(--gold-light);
             font-size: 18px;
             font-weight: 700;
             text-align: center;
             outline: none;
-            transition: border-color 0.3s;
-        }
-
-        .bet-input:focus {
-            border-color: var(--gold);
-            box-shadow: var(--shadow-gold);
+            min-width: 60px;
+            letter-spacing: 1px;
         }
 
         .bet-input::placeholder {
-            color: rgba(255, 215, 0, 0.3);
+            color: rgba(240, 200, 80, 0.25);
+        }
+
+        .bet-input:focus {
+            box-shadow: inset 0 0 8px rgba(240, 200, 80, 0.2);
+        }
+
+        .quick-bets-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
         }
 
         .quick-bet-btn {
-            padding: 10px 14px;
-            border-radius: var(--radius-sm);
-            background: rgba(255, 215, 0, 0.15);
-            border: 1px solid rgba(255, 215, 0, 0.3);
+            flex: 1;
+            padding: 8px 4px;
+            border-radius: 8px;
+            background: rgba(240, 200, 80, 0.08);
+            border: 1px solid rgba(240, 200, 80, 0.2);
             color: var(--gold);
             font-weight: 700;
             cursor: pointer;
-            font-size: 13px;
-            white-space: nowrap;
+            font-size: 12px;
+            text-align: center;
+            transition: all 0.2s;
         }
 
         .quick-bet-btn:active {
-            background: rgba(255, 215, 0, 0.3);
+            background: rgba(240, 200, 80, 0.2);
+            transform: scale(0.95);
+        }
+
+        /* ─── ЧЕКБОКС БЕСПЛАТНОГО СПИНА ─── */
+        .free-spin-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 255, 85, 0.05);
+            border: 1px solid rgba(0, 255, 85, 0.2);
+            border-radius: var(--radius-xs);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .free-spin-toggle:hover {
+            background: rgba(0, 255, 85, 0.1);
+        }
+
+        .free-spin-toggle.checked {
+            border-color: rgba(0, 255, 85, 0.5);
+            background: rgba(0, 255, 85, 0.12);
+            box-shadow: 0 0 16px rgba(0, 255, 85, 0.2);
+        }
+
+        .free-spin-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--neon-green);
+            cursor: pointer;
+        }
+
+        .free-spin-label {
+            font-size: 13px;
+            color: #c0e8c0;
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .free-spin-count {
+            margin-left: auto;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--neon-green);
         }
 
         /* ─── КНОПКА СПИНА ─── */
         .spin-btn {
             width: 100%;
-            padding: 18px;
+            padding: 16px;
             border-radius: var(--radius);
-            background: linear-gradient(135deg, #ffd700, #ff8c00, #ffd700);
+            background: linear-gradient(135deg, #f0c850, #d49420, #f0c850);
             background-size: 200% 200%;
-            animation: shimmer 2s ease-in-out infinite;
+            animation: shimmer 2.5s ease-in-out infinite;
             border: none;
-            color: #1a1a1a;
+            color: #1a1008;
             font-size: 20px;
             font-weight: 900;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-top: 12px;
-            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.3);
+            letter-spacing: 4px;
+            margin-top: 14px;
+            box-shadow: 0 6px 28px rgba(200, 150, 50, 0.3);
             transition: all 0.2s ease;
         }
 
         .spin-btn:active {
             transform: scale(0.95);
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 14px rgba(200, 150, 50, 0.2);
         }
 
         .spin-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.45;
             cursor: not-allowed;
             animation: none;
         }
@@ -492,19 +559,19 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* ─── БАННЕР РЕЗУЛЬТАТА ─── */
+        /* ─── РЕЗУЛЬТАТ ─── */
         .result-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 100;
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s ease;
+            animation: fadeIn 0.25s ease;
         }
 
         .result-overlay.hidden {
@@ -522,20 +589,20 @@
             -webkit-backdrop-filter: var(--glass-blur);
             border: 2px solid var(--glass-border);
             border-radius: var(--radius);
-            padding: 30px 25px;
+            padding: 30px 24px;
             text-align: center;
-            max-width: 350px;
+            max-width: 340px;
             width: 90%;
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .result-banner.win {
-            border-color: rgba(0, 255, 65, 0.6);
-            box-shadow: 0 0 40px rgba(0, 255, 65, 0.3), 0 0 80px rgba(0, 255, 65, 0.1);
+            border-color: rgba(0, 255, 85, 0.5);
+            box-shadow: 0 0 50px rgba(0, 255, 85, 0.25), 0 0 80px rgba(0, 255, 85, 0.08);
         }
 
         .result-banner.lose {
-            border-color: rgba(255, 0, 0, 0.4);
+            border-color: rgba(255, 60, 60, 0.3);
         }
 
         @keyframes popIn {
@@ -544,7 +611,7 @@
         }
 
         .result-emoji {
-            font-size: 64px;
+            font-size: 60px;
             animation: bounceResult 0.6s ease;
         }
 
@@ -555,40 +622,41 @@
         }
 
         .result-number {
-            font-size: 48px;
+            font-size: 52px;
             font-weight: 900;
-            margin: 10px 0;
-        }
-
-        .result-number.red-num { color: #e63946; }
-        .result-number.black-num { color: #f0f0f0; }
-        .result-number.green-num { color: #00ff41; }
-
-        .result-amount {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--gold);
             margin: 8px 0;
         }
 
-        .result-close-btn {
-            margin-top: 15px;
-            padding: 12px 30px;
-            border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, #ffd700, #ff8c00);
-            border: none;
-            color: #1a1a1a;
+        .result-number.red-num { color: #e04040; }
+        .result-number.black-num { color: #e8e8e8; }
+        .result-number.green-num { color: #00ff55; }
+
+        .result-amount {
+            font-size: 22px;
             font-weight: 700;
-            font-size: 16px;
+            color: var(--gold-light);
+            margin: 6px 0;
+        }
+
+        .result-close-btn {
+            margin-top: 16px;
+            padding: 12px 36px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #f0c850, #d49420);
+            border: none;
+            color: #1a1008;
+            font-weight: 700;
+            font-size: 15px;
             cursor: pointer;
+            letter-spacing: 1px;
         }
 
         /* ─── МУЛЬТИПЛЕЕР ─── */
         .room-card {
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.35);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
-            padding: 15px;
+            padding: 14px;
             margin-bottom: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -607,24 +675,24 @@
 
         .room-id {
             font-weight: 700;
-            color: var(--gold);
-            font-size: 16px;
+            color: var(--gold-light);
+            font-size: 15px;
         }
 
         .room-players {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-secondary);
         }
 
         .room-bank {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--neon-green);
             font-weight: 600;
         }
 
         .room-timer {
-            font-size: 12px;
-            color: #ff8c00;
+            font-size: 11px;
+            color: #e89030;
         }
 
         .player-list {
@@ -637,63 +705,69 @@
         .player-badge {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 13px;
+            gap: 5px;
+            padding: 7px 11px;
+            border-radius: 18px;
+            font-size: 12px;
             font-weight: 600;
-            color: white;
+            color: #fff;
         }
 
         .player-avatar {
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .create-room-btn {
             width: 100%;
-            padding: 14px;
+            padding: 13px;
             border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, #2d7a2d, #1a4a1a);
-            border: 1px solid var(--gold);
-            color: var(--gold);
+            background: linear-gradient(135deg, #1a6b1a, #0f3d0f);
+            border: 1px solid rgba(240, 200, 80, 0.3);
+            color: var(--gold-light);
             font-weight: 700;
-            font-size: 16px;
+            font-size: 15px;
             cursor: pointer;
             margin-top: 10px;
+            letter-spacing: 1px;
         }
 
-        /* ─── ЧАТ ПОДДЕРЖКИ ─── */
-        .support-btn {
+        .support-link {
             display: block;
             width: 100%;
             padding: 12px;
             border-radius: var(--radius-sm);
-            background: rgba(255, 215, 0, 0.1);
-            border: 1px solid rgba(255, 215, 0, 0.2);
+            background: rgba(240, 200, 80, 0.06);
+            border: 1px solid rgba(240, 200, 80, 0.12);
             color: var(--text-secondary);
             text-align: center;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             margin-top: 10px;
             text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .support-link:hover {
+            border-color: rgba(240, 200, 80, 0.3);
+            color: var(--gold-light);
         }
 
         /* ─── LOADING ─── */
         .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 215, 0, 0.2);
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(240, 200, 80, 0.15);
             border-top-color: var(--gold);
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 20px auto;
+            animation: spin 0.7s linear infinite;
+            margin: 16px auto;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* ─── ТОСТЫ ─── */
+        /* ─── TOAST ─── */
         .toast {
             position: fixed;
             top: 20px;
@@ -703,12 +777,13 @@
             backdrop-filter: var(--glass-blur);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-sm);
-            padding: 12px 20px;
+            padding: 12px 22px;
             color: var(--text-primary);
             font-weight: 600;
             z-index: 200;
             animation: slideDown 0.3s ease;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+            font-size: 13px;
         }
 
         @keyframes slideDown {
@@ -716,39 +791,33 @@
             to { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
 
-        /* ─── ADAPTIVE ─── */
-        @media (max-width: 400px) {
-            .wheel-container {
-                width: 260px;
-                height: 260px;
+        @media (max-width: 380px) {
+            .wheel-wrapper {
+                width: 270px;
+                height: 270px;
             }
             .header-title {
-                font-size: 22px;
+                font-size: 24px;
             }
             .bet-btn {
-                font-size: 14px;
-                padding: 10px;
+                font-size: 12px;
+                padding: 10px 6px;
             }
             .spin-btn {
-                font-size: 16px;
-                padding: 14px;
+                font-size: 17px;
+                padding: 13px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Парящие частицы -->
     <div class="particles-container" id="particles"></div>
-
-    <!-- Фоновый градиент -->
     <div class="bg-gradient"></div>
 
-    <!-- Основной контейнер -->
     <div class="app-container" id="appContainer">
-        <!-- Header -->
         <div class="header">
             <span class="header-logo">🎡</span>
-            <h1 class="header-title">LN ROULETTE</h1>
+            <h1 class="header-title">ROULETTE</h1>
             <p class="header-subtitle">European Casino</p>
         </div>
 
@@ -765,7 +834,7 @@
                 </div>
                 <div class="balance-item">
                     <div class="balance-label">🏆 Побед</div>
-                    <div class="balance-value" id="winsDisplay" style="font-size:16px;">0</div>
+                    <div class="balance-value" id="winsDisplay" style="font-size:15px;">0</div>
                 </div>
             </div>
         </div>
@@ -776,27 +845,25 @@
             <button class="tab-btn" data-mode="multiplayer" id="tabMulti">👥 Мультиплеер</button>
         </div>
 
-        <!-- Контент одиночной игры -->
+        <!-- Одиночная игра -->
         <div id="singleGameContent">
-            <!-- Колесо -->
             <div class="glass-panel">
-                <div class="wheel-container">
+                <div class="wheel-wrapper" id="wheelWrapper">
                     <div class="wheel-marker"></div>
-                    <div class="wheel-outer">
-                        <div class="wheel-inner" id="wheelInner"></div>
+                    <div class="wheel-outer-ring">
+                        <div class="wheel-numbers-ring" id="wheelNumbersRing"></div>
+                        <div class="wheel-colored-ring" id="wheelColoredRing"></div>
                     </div>
-                    <div class="wheel-center">💎</div>
+                    <div class="wheel-inner-circle">💎</div>
                 </div>
-                <div class="wheel-number-display" id="wheelNumberDisplay">
+                <div class="wheel-result-display" id="wheelResultDisplay">
                     Нажмите SPIN для игры
                 </div>
             </div>
 
-            <!-- Выбор ставки -->
+            <!-- Ставки -->
             <div class="glass-panel">
-                <p style="text-align:center;margin-bottom:8px;color:var(--text-secondary);font-size:13px;">
-                    ВЫБЕРИТЕ СТАВКУ
-                </p>
+                <p class="bet-section-title">Выберите ставку</p>
                 <div class="bet-grid" id="betGrid">
                     <button class="bet-btn red" data-bet="red">🔴 КРАСНОЕ ×2</button>
                     <button class="bet-btn black" data-bet="black">⚫ ЧЁРНОЕ ×2</button>
@@ -805,41 +872,44 @@
                     <button class="bet-btn green" data-bet="zero">🟢 ZERO ×36</button>
                 </div>
 
-                <div class="bet-input-row">
-                    <input type="number" class="bet-input" id="betAmount" value="1" min="0.1" step="0.1" placeholder="Сумма">
-                    <button class="quick-bet-btn" data-amount="0.5">0.5</button>
-                    <button class="quick-bet-btn" data-amount="1">1</button>
-                    <button class="quick-bet-btn" data-amount="5">5</button>
-                    <button class="quick-bet-btn" data-amount="10">10</button>
+                <div class="bet-input-container">
+                    <span class="bet-input-label">💵 Сумма</span>
+                    <input type="number" class="bet-input" id="betAmount" value="1" min="0.1" step="0.1" placeholder="1">
                 </div>
 
-                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-                    <input type="checkbox" id="useFreeSpin" style="accent-color:var(--neon-green);width:18px;height:18px;">
-                    <label for="useFreeSpin" style="font-size:13px;color:var(--text-secondary);">
-                        🎁 Использовать бесплатный спин
-                    </label>
+                <div class="quick-bets-row">
+                    <button class="quick-bet-btn" data-amount="0.5">0.5$</button>
+                    <button class="quick-bet-btn" data-amount="1">1$</button>
+                    <button class="quick-bet-btn" data-amount="5">5$</button>
+                    <button class="quick-bet-btn" data-amount="10">10$</button>
+                    <button class="quick-bet-btn" data-amount="50">50$</button>
+                </div>
+
+                <div class="free-spin-toggle" id="freeSpinToggle">
+                    <input type="checkbox" class="free-spin-checkbox" id="useFreeSpin">
+                    <span class="free-spin-label">🎁 Бесплатный спин</span>
+                    <span class="free-spin-count" id="freeSpinCount">0</span>
                 </div>
 
                 <button class="spin-btn" id="spinBtn">🎰 SPIN</button>
             </div>
         </div>
 
-        <!-- Контент мультиплеера -->
+        <!-- Мультиплеер -->
         <div id="multiplayerGameContent" style="display:none;">
-            <!-- Создание комнаты -->
             <div class="glass-panel glass-panel-sm">
-                <p style="text-align:center;margin-bottom:8px;color:var(--gold);font-weight:700;">
+                <p style="text-align:center;margin-bottom:8px;color:var(--gold-light);font-weight:700;">
                     👥 МУЛЬТИПЛЕЕРНАЯ РУЛЕТКА
                 </p>
-                <div class="bet-input-row">
-                    <input type="number" class="bet-input" id="mpBetAmount" value="1" min="0.1" step="0.1" placeholder="Ставка">
+                <div class="bet-input-container">
+                    <span class="bet-input-label">💵 Ставка</span>
+                    <input type="number" class="bet-input" id="mpBetAmount" value="1" min="0.1" step="0.1" placeholder="1">
                 </div>
                 <button class="create-room-btn" id="createRoomBtn">🎯 СОЗДАТЬ КОМНАТУ</button>
             </div>
 
-            <!-- Список комнат -->
             <div class="glass-panel">
-                <p style="text-align:center;margin-bottom:10px;color:var(--text-secondary);font-size:13px;">
+                <p style="text-align:center;margin-bottom:10px;color:var(--text-secondary);font-size:12px;">
                     АКТИВНЫЕ КОМНАТЫ
                 </p>
                 <div id="roomsList">
@@ -848,42 +918,40 @@
                         Нет активных комнат. Создайте свою!
                     </p>
                 </div>
-                <button class="support-btn" id="refreshRoomsBtn">🔄 Обновить</button>
+                <button class="support-link" id="refreshRoomsBtn">🔄 Обновить</button>
             </div>
 
-            <!-- Моя комната -->
             <div class="glass-panel hidden" id="myRoomPanel">
-                <p style="text-align:center;font-weight:700;color:var(--gold);" id="myRoomTitle">
+                <p style="text-align:center;font-weight:700;color:var(--gold-light);">
                     КОМНАТА #<span id="myRoomId">---</span>
                 </p>
-                <p style="text-align:center;font-size:13px;color:var(--text-secondary);">
+                <p style="text-align:center;font-size:12px;color:var(--text-secondary);">
                     Банк: <span id="myRoomBank" style="color:var(--neon-green);">0.00$</span>
                 </p>
-                <p style="text-align:center;font-size:13px;color:#ff8c00;">
+                <p style="text-align:center;font-size:12px;color:#e89030;">
                     ⏱ Таймер: <span id="myRoomTimer">30</span>с
                 </p>
                 <div class="player-list" id="myRoomPlayers"></div>
-                <button class="create-room-btn" id="startGameBtn" style="background:linear-gradient(135deg,#ffd700,#ff8c00);color:#1a1a1a;display:none;">
+                <button class="create-room-btn" id="startGameBtn" style="background:linear-gradient(135deg,#f0c850,#d49420);color:#1a1008;display:none;">
                     🚀 ЗАПУСТИТЬ ИГРУ
                 </button>
-                <button class="support-btn" id="leaveRoomBtn" style="color:#e63946;border-color:rgba(230,57,70,0.3);">
+                <button class="support-link" id="leaveRoomBtn" style="color:#e04040;border-color:rgba(255,60,60,0.2);">
                     🚪 Выйти
                 </button>
             </div>
 
-            <!-- Результат мультиплеера -->
             <div class="glass-panel hidden" id="mpResultPanel">
-                <p style="text-align:center;font-size:13px;color:var(--text-secondary);">РЕЗУЛЬТАТ</p>
+                <p style="text-align:center;font-size:12px;color:var(--text-secondary);">РЕЗУЛЬТАТ</p>
                 <p style="text-align:center;font-size:36px;" id="mpResultEmoji">🎉</p>
-                <p style="text-align:center;font-weight:700;color:var(--gold);font-size:18px;" id="mpResultText"></p>
-                <p style="text-align:center;font-size:14px;color:var(--neon-green);" id="mpResultAmount"></p>
+                <p style="text-align:center;font-weight:700;color:var(--gold-light);font-size:17px;" id="mpResultText"></p>
+                <p style="text-align:center;font-size:13px;color:var(--neon-green);" id="mpResultAmount"></p>
             </div>
         </div>
 
         <!-- Поддержка -->
-        <button class="support-btn" onclick="window.open('https://t.me/lnRoulette_bot', '_blank')">
+        <a class="support-link" href="https://t.me/lnRoulette_bot?start=support" target="_blank" id="supportLink">
             📩 Связаться с поддержкой
-        </button>
+        </a>
     </div>
 
     <!-- Оверлей результата -->
@@ -892,7 +960,7 @@
             <div class="result-emoji" id="resultEmoji"></div>
             <div class="result-number" id="resultNumber"></div>
             <div class="result-amount" id="resultAmount"></div>
-            <p style="color:var(--text-secondary);font-size:13px;" id="resultMessage"></p>
+            <p style="color:var(--text-secondary);font-size:12px;" id="resultMessage"></p>
             <button class="result-close-btn" id="resultCloseBtn">ОК</button>
         </div>
     </div>
@@ -908,7 +976,6 @@
             tg.expand();
             tg.enableClosingConfirmation();
 
-            // Получаем данные пользователя
             const initData = tg.initDataUnsafe;
             if (initData && initData.user) {
                 currentUser = {
@@ -920,9 +987,8 @@
             }
         }
 
-        // Если нет данных из Telegram — тестовый режим
         if (!currentUser) {
-            console.warn('⚠️ Running in test mode (no Telegram WebApp)');
+            console.warn('⚠️ Test mode');
             currentUser = {
                 id: 1167503795,
                 username: 'test_user',
@@ -948,32 +1014,35 @@
             selectedBet: null,
             betAmount: 1,
             isSpinning: false,
-            mode: 'single', // 'single' | 'multiplayer'
-            // Multiplayer
+            mode: 'single',
             currentRoom: null,
             rooms: [],
             isCreator: false
         };
 
-        // WebSocket
         let ws = null;
         let wsReconnectTimer = null;
+        let wheelCurrentRotation = 0;
 
         // ═══════════════════════════════════════
-        // DOM ELEMENTS
+        // DOM
         // ═══════════════════════════════════════
         const $ = (sel) => document.querySelector(sel);
         const $$ = (sel) => document.querySelectorAll(sel);
 
-        const elements = {
+        const els = {
             balanceDisplay: $('#balanceDisplay'),
             freeSpinsDisplay: $('#freeSpinsDisplay'),
             winsDisplay: $('#winsDisplay'),
-            wheelInner: $('#wheelInner'),
-            wheelNumberDisplay: $('#wheelNumberDisplay'),
+            wheelWrapper: $('#wheelWrapper'),
+            wheelNumbersRing: $('#wheelNumbersRing'),
+            wheelColoredRing: $('#wheelColoredRing'),
+            wheelResultDisplay: $('#wheelResultDisplay'),
             betGrid: $('#betGrid'),
             betAmount: $('#betAmount'),
             useFreeSpin: $('#useFreeSpin'),
+            freeSpinToggle: $('#freeSpinToggle'),
+            freeSpinCount: $('#freeSpinCount'),
             spinBtn: $('#spinBtn'),
             resultOverlay: $('#resultOverlay'),
             resultBanner: $('#resultBanner'),
@@ -982,12 +1051,10 @@
             resultAmount: $('#resultAmount'),
             resultMessage: $('#resultMessage'),
             resultCloseBtn: $('#resultCloseBtn'),
-            // Tabs
             tabSingle: $('#tabSingle'),
             tabMulti: $('#tabMulti'),
             singleGameContent: $('#singleGameContent'),
             multiplayerGameContent: $('#multiplayerGameContent'),
-            // Multiplayer
             roomsList: $('#roomsList'),
             roomsLoading: $('#roomsLoading'),
             noRoomsMsg: $('#noRoomsMsg'),
@@ -1004,31 +1071,25 @@
             mpResultPanel: $('#mpResultPanel'),
             mpResultEmoji: $('#mpResultEmoji'),
             mpResultText: $('#mpResultText'),
-            mpResultAmount: $('#mpResultAmount')
+            mpResultAmount: $('#mpResultAmount'),
+            supportLink: $('#supportLink')
         };
 
         // ═══════════════════════════════════════
-        // API ФУНКЦИИ
+        // API
         // ═══════════════════════════════════════
 
         async function apiCall(endpoint, data = {}) {
             try {
                 const response = await fetch(`${API_URL}${endpoint}`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        user_id: currentUser.id,
-                        ...data
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.id, ...data })
                 });
-
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || `HTTP ${response.status}`);
                 }
-
                 return await response.json();
             } catch (error) {
                 console.error(`API Error (${endpoint}):`, error);
@@ -1046,209 +1107,242 @@
                 gameState.totalGames = data.total_games || 0;
                 updateBalanceDisplay();
             } catch (error) {
-                console.error('Fetch user data error:', error);
+                console.error('Fetch user error:', error);
             }
         }
 
         function updateBalanceDisplay() {
-            elements.balanceDisplay.textContent = `${gameState.balance.toFixed(2)}$`;
-            elements.freeSpinsDisplay.textContent = gameState.freeSpins;
-            elements.winsDisplay.textContent = gameState.totalWins;
+            els.balanceDisplay.textContent = `${gameState.balance.toFixed(2)}$`;
+            els.freeSpinsDisplay.textContent = gameState.freeSpins;
+            els.winsDisplay.textContent = gameState.totalWins;
+            els.freeSpinCount.textContent = gameState.freeSpins;
         }
 
         // ═══════════════════════════════════════
-        // ТОСТЫ
+        // TOAST
         // ═══════════════════════════════════════
 
         function showToast(message, duration = 2000) {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
-
             const toast = document.createElement('div');
             toast.className = 'toast';
             toast.textContent = message;
             document.body.appendChild(toast);
-
             setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.3s ease';
+                toast.style.transition = 'opacity 0.3s';
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         }
 
         // ═══════════════════════════════════════
-        // ВИБРАЦИЯ
+        // VIBRATE
         // ═══════════════════════════════════════
 
-        function vibrate(pattern = 15) {
-            if (navigator.vibrate) {
-                navigator.vibrate(pattern);
-            }
+        function vibrate(ms = 12) {
+            if (navigator.vibrate) navigator.vibrate(ms);
         }
 
         // ═══════════════════════════════════════
-        // ПАРЯЩИЕ ЧАСТИЦЫ
+        // PARTICLES
         // ═══════════════════════════════════════
 
         function createParticles() {
             const container = $('#particles');
-            const colors = ['#ffd700', '#00ff41', '#ff6b6b', '#4ecdc4', '#ff8c00', '#fff'];
-            const shapes = ['circle', 'diamond', 'star'];
-
-            for (let i = 0; i < 50; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = `${Math.random() * 100}%`;
-                particle.style.width = `${2 + Math.random() * 6}px`;
-                particle.style.height = particle.style.width;
-                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                particle.style.animationDuration = `${5 + Math.random() * 15}s`;
-                particle.style.animationDelay = `${Math.random() * 10}s`;
-
-                if (shapes[Math.floor(Math.random() * shapes.length)] === 'diamond') {
-                    particle.style.borderRadius = '2px';
-                    particle.style.transform = 'rotate(45deg)';
-                }
-
-                container.appendChild(particle);
+            const colors = ['#f0c850', '#00ff55', '#ff7070', '#4ecdc4', '#e89030', '#fff'];
+            for (let i = 0; i < 45; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = `${Math.random() * 100}%`;
+                const size = 2 + Math.random() * 5;
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDuration = `${5 + Math.random() * 14}s`;
+                p.style.animationDelay = `${Math.random() * 10}s`;
+                container.appendChild(p);
             }
         }
 
         // ═══════════════════════════════════════
-        // ЗВУК ВРАЩЕНИЯ (ОПЦИОНАЛЬНО)
+        // ЗВУКИ
         // ═══════════════════════════════════════
 
         function playSpinSound() {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const duration = 5;
-                const sampleRate = audioCtx.sampleRate;
-
-                // Создаём белый шум с модуляцией для эффекта вращения
-                const buffer = audioCtx.createBuffer(1, duration * sampleRate, sampleRate);
-                const data = buffer.getChannelData(0);
-
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const dur = 5;
+                const sr = ctx.sampleRate;
+                const buf = ctx.createBuffer(1, dur * sr, sr);
+                const data = buf.getChannelData(0);
                 for (let i = 0; i < data.length; i++) {
-                    const t = i / sampleRate;
-                    const progress = t / duration;
-                    // Частота модуляции меняется (замедляется к концу)
-                    const modFreq = 10 + progress * 40;
-                    const amplitude = 0.03 * (1 - progress * 0.7);
-                    data[i] = (Math.random() * 2 - 1) * amplitude *
-                              (0.5 + 0.5 * Math.sin(2 * Math.PI * modFreq * t));
+                    const t = i / sr;
+                    const prog = t / dur;
+                    const mf = 8 + prog * 50;
+                    const amp = 0.025 * (1 - prog * 0.8);
+                    data[i] = (Math.random() * 2 - 1) * amp * (0.4 + 0.6 * Math.sin(2 * Math.PI * mf * t));
                 }
-
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.value = 800;
-                filter.Q.value = 0.5;
-
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-
-                source.connect(filter);
-                filter.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                source.start();
-                source.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                // Без звука — ничего страшного
-            }
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const flt = ctx.createBiquadFilter();
+                flt.type = 'bandpass';
+                flt.frequency.value = 700;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+                src.connect(flt);
+                flt.connect(gain);
+                gain.connect(ctx.destination);
+                src.start();
+                src.stop(ctx.currentTime + dur);
+            } catch(e) {}
         }
 
         function playWinSound() {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const frequencies = [523, 659, 784, 1047]; // C5 E5 G5 C6
-                frequencies.forEach((freq, index) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [523, 659, 784, 1047].forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
                     osc.type = 'sine';
-                    osc.frequency.value = freq;
-                    gain.gain.setValueAtTime(0, audioCtx.currentTime + index * 0.12);
-                    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + index * 0.12 + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + index * 0.12 + 0.4);
+                    osc.frequency.value = f;
+                    gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + i * 0.1 + 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.4);
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(audioCtx.currentTime + index * 0.12);
-                    osc.stop(audioCtx.currentTime + index * 0.12 + 0.4);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + i * 0.1);
+                    osc.stop(ctx.currentTime + i * 0.1 + 0.4);
                 });
-            } catch (e) {}
+            } catch(e) {}
         }
 
         function playLoseSound() {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.5);
-                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc.frequency.setValueAtTime(280, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.06, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(ctx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            } catch (e) {}
+                osc.stop(ctx.currentTime + 0.5);
+            } catch(e) {}
         }
 
         // ═══════════════════════════════════════
-        // ОДИНОЧНАЯ РУЛЕТКА
+        // ОТРИСОВКА КОЛЕСА С ЦИФРАМИ
+        // ═══════════════════════════════════════
+
+        const ROULETTE_NUMBERS = [
+            0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+            5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+        ];
+
+        const RED_NUMS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+        function getNumberColor(num) {
+            if (num === 0) return 'green';
+            return RED_NUMS.has(num) ? 'red' : 'black';
+        }
+
+        function drawWheel() {
+            const ring = els.wheelNumbersRing;
+            const total = ROULETTE_NUMBERS.length;
+            const sectorAngle = 360 / total;
+            const ringWidth = ring.offsetWidth || 300;
+            const radius = ringWidth / 2 - 12;
+
+            ring.innerHTML = '';
+
+            ROULETTE_NUMBERS.forEach((num, index) => {
+                const angle = sectorAngle * index - 90;
+                const rad = angle * Math.PI / 180;
+                const x = radius + Math.cos(rad) * radius * 0.82;
+                const y = radius + Math.sin(rad) * radius * 0.82;
+
+                const span = document.createElement('span');
+                span.className = 'wheel-number';
+                span.textContent = num;
+                span.style.left = `${x}px`;
+                span.style.top = `${y}px`;
+                span.style.transform = `translate(-50%, -50%) rotate(${angle + 90}deg)`;
+
+                const color = getNumberColor(num);
+                if (color === 'red') span.style.color = '#e04040';
+                else if (color === 'green') span.style.color = '#00ff55';
+                else span.style.color = '#e8e8e8';
+
+                ring.appendChild(span);
+            });
+
+            // Отрисовка цветного кольца
+            drawColoredRing();
+        }
+
+        function drawColoredRing() {
+            const ring = els.wheelColoredRing;
+            const total = ROULETTE_NUMBERS.length;
+            const sectorAngle = 360 / total;
+            let gradient = 'conic-gradient(from 0deg, ';
+
+            const segments = [];
+            ROULETTE_NUMBERS.forEach((num, index) => {
+                const color = getNumberColor(num);
+                const colorHex = color === 'red' ? '#c03030' : color === 'green' ? '#006830' : '#1a1a1a';
+                const start = sectorAngle * index;
+                const end = sectorAngle * (index + 1);
+                segments.push(`${colorHex} ${start}deg ${end}deg`);
+            });
+
+            gradient += segments.join(', ') + ')';
+            ring.style.background = gradient;
+        }
+
+        // ═══════════════════════════════════════
+        // СПИН КОЛЕСА
+        // ═══════════════════════════════════════
+
+        function spinWheelToNumber(targetNumber) {
+            return new Promise((resolve) => {
+                const ring = els.wheelColoredRing;
+                const total = ROULETTE_NUMBERS.length;
+                const sectorAngle = 360 / total;
+                const targetIndex = ROULETTE_NUMBERS.indexOf(targetNumber);
+                const targetAngle = sectorAngle * targetIndex + sectorAngle / 2;
+
+                const fullRotations = 5 + Math.floor(Math.random() * 5);
+                const rotation = wheelCurrentRotation + fullRotations * 360 + (360 - (wheelCurrentRotation % 360)) + targetAngle;
+
+                wheelCurrentRotation = rotation;
+                ring.style.transform = `rotate(${rotation}deg)`;
+                ring.classList.add('spinning');
+
+                playSpinSound();
+
+                setTimeout(() => {
+                    ring.classList.remove('spinning');
+                    resolve();
+                }, 5000);
+            });
+        }
+
+        // ═══════════════════════════════════════
+        // СТАВКИ
         // ═══════════════════════════════════════
 
         function selectBet(betType) {
             if (gameState.isSpinning) return;
-
-            // Снимаем выделение со всех кнопок
-            $$('.bet-btn').forEach(btn => btn.classList.remove('selected'));
-
-            // Выделяем выбранную
+            $$('.bet-btn').forEach(b => b.classList.remove('selected'));
             const btn = document.querySelector(`.bet-btn[data-bet="${betType}"]`);
             if (btn) btn.classList.add('selected');
-
             gameState.selectedBet = betType;
             vibrate(10);
-        }
-
-        function getRandomSpinDegrees() {
-            // Случайный угол для колеса (минимум 5 полных оборотов + случайный)
-            const fullRotations = 5 + Math.floor(Math.random() * 5); // 5-9 оборотов
-            const randomAngle = Math.random() * 360;
-            return fullRotations * 360 + randomAngle;
-        }
-
-        function spinWheel(targetNumber) {
-            return new Promise((resolve) => {
-                const wheel = elements.wheelInner;
-                const currentRotation = parseFloat(wheel.dataset.rotation || '0');
-
-                // Рассчитываем угол для целевого числа
-                // Каждый сектор = 360/37 ≈ 9.73 градуса
-                const sectorAngle = 360 / 37;
-                const targetAngle = targetNumber * sectorAngle + sectorAngle / 2;
-
-                // Добавляем полные обороты
-                const fullRotations = 5 + Math.floor(Math.random() * 5);
-                const totalRotation = currentRotation + fullRotations * 360 + (360 - (currentRotation % 360)) + targetAngle;
-
-                wheel.dataset.rotation = totalRotation;
-                wheel.style.transform = `rotate(${totalRotation}deg)`;
-                wheel.classList.add('spinning');
-
-                // Звук вращения
-                playSpinSound();
-
-                // Ждём окончания анимации (5 секунд)
-                setTimeout(() => {
-                    wheel.classList.remove('spinning');
-                    resolve();
-                }, 5000);
-            });
         }
 
         async function placeBet() {
@@ -1259,8 +1353,8 @@
                 return;
             }
 
-            const betAmount = parseFloat(elements.betAmount.value) || 0;
-            const useFreeSpin = elements.useFreeSpin.checked;
+            const betAmount = parseFloat(els.betAmount.value) || 0;
+            const useFreeSpin = els.useFreeSpin.checked;
 
             if (!useFreeSpin && betAmount <= 0) {
                 showToast('Введите сумму ставки!');
@@ -1277,88 +1371,73 @@
                 return;
             }
 
-            // Блокируем интерфейс
             gameState.isSpinning = true;
-            elements.spinBtn.disabled = true;
-            elements.spinBtn.textContent = '🎰 ВРАЩЕНИЕ...';
+            els.spinBtn.disabled = true;
+            els.spinBtn.textContent = '🎰 ВРАЩЕНИЕ...';
             vibrate(20);
 
             try {
-                // Отправляем запрос на сервер
                 const result = await apiCall('/api/game/place_bet', {
                     bet_type: gameState.selectedBet,
                     bet_amount: betAmount,
                     use_free_spin: useFreeSpin
                 });
 
-                // Вращаем колесо к целевому числу
-                await spinWheel(result.number);
+                await spinWheelToNumber(result.number);
 
-                // Обновляем состояние
                 gameState.balance = result.new_balance;
                 gameState.freeSpins = result.free_spins;
                 if (result.is_win) gameState.totalWins++;
                 updateBalanceDisplay();
 
-                // Показываем результат
                 showResult(result);
             } catch (error) {
                 showToast('Ошибка игры. Попробуйте снова.');
-                console.error('Place bet error:', error);
             } finally {
                 gameState.isSpinning = false;
-                elements.spinBtn.disabled = false;
-                elements.spinBtn.textContent = '🎰 SPIN';
-                elements.useFreeSpin.checked = false;
+                els.spinBtn.disabled = false;
+                els.spinBtn.textContent = '🎰 SPIN';
+                els.useFreeSpin.checked = false;
+                els.freeSpinToggle.classList.remove('checked');
             }
         }
 
         function showResult(result) {
-            const overlay = elements.resultOverlay;
-            const banner = elements.resultBanner;
-            const emoji = elements.resultEmoji;
-            const number = elements.resultNumber;
-            const amount = elements.resultAmount;
-            const message = elements.resultMessage;
-
-            banner.classList.remove('win', 'lose');
+            els.resultBanner.classList.remove('win', 'lose');
 
             if (result.is_win) {
-                banner.classList.add('win');
-                emoji.textContent = '🎉';
-                amount.textContent = `+${result.win_amount.toFixed(2)}$`;
-                amount.style.color = '#00ff41';
-                message.textContent = 'ПОЗДРАВЛЯЕМ! ВЫ ВЫИГРАЛИ!';
+                els.resultBanner.classList.add('win');
+                els.resultEmoji.textContent = '🎉';
+                els.resultAmount.textContent = `+${result.win_amount.toFixed(2)}$`;
+                els.resultAmount.style.color = '#00ff55';
+                els.resultMessage.textContent = 'ПОЗДРАВЛЯЕМ! ВЫ ВЫИГРАЛИ!';
                 playWinSound();
             } else {
-                banner.classList.add('lose');
-                emoji.textContent = '😢';
-                amount.textContent = `-${elements.betAmount.value || '0'}$`;
-                amount.style.color = '#e63946';
-                message.textContent = 'Повезёт в следующий раз!';
+                els.resultBanner.classList.add('lose');
+                els.resultEmoji.textContent = '😢';
+                els.resultAmount.textContent = `-${els.betAmount.value || '0'}$`;
+                els.resultAmount.style.color = '#e04040';
+                els.resultMessage.textContent = 'Повезёт в следующий раз!';
                 playLoseSound();
             }
 
-            // Цвет числа
-            number.textContent = result.number;
-            number.className = 'result-number';
-            if (result.color === 'red') number.classList.add('red-num');
-            else if (result.color === 'black') number.classList.add('black-num');
-            else number.classList.add('green-num');
+            els.resultNumber.textContent = result.number;
+            els.resultNumber.className = 'result-number';
+            if (result.color === 'red') els.resultNumber.classList.add('red-num');
+            else if (result.color === 'black') els.resultNumber.classList.add('black-num');
+            else els.resultNumber.classList.add('green-num');
 
-            // Показываем оверлей
-            overlay.classList.remove('hidden');
+            els.resultOverlay.classList.remove('hidden');
 
-            // Обновляем отображение под колесом
             const colorNames = { red: 'КРАСНОЕ', black: 'ЧЁРНОЕ', green: 'ZERO' };
-            elements.wheelNumberDisplay.innerHTML = `
-                Выпало: <span style="color:${result.color === 'red' ? '#e63946' : result.color === 'black' ? '#f0f0f0' : '#00ff41'};font-weight:700;">
+            els.wheelResultDisplay.innerHTML = `
+                Выпало: <span style="color:${result.color === 'red' ? '#e04040' : result.color === 'black' ? '#e8e8e8' : '#00ff55'};font-weight:700;">
                 ${result.number} ${colorNames[result.color]}</span>
             `;
         }
 
         function closeResult() {
-            elements.resultOverlay.classList.add('hidden');
+            els.resultOverlay.classList.add('hidden');
             vibrate(10);
         }
 
@@ -1373,17 +1452,9 @@
                 ws = new WebSocket(`${WS_URL}/ws`);
 
                 ws.onopen = () => {
-                    console.log('🔌 WebSocket connected');
-                    // Отправляем connect
-                    ws.send(JSON.stringify({
-                        action: 'connect',
-                        user_id: currentUser.id
-                    }));
-
-                    // Запрашиваем список комнат
+                    console.log('🔌 WS connected');
+                    ws.send(JSON.stringify({ action: 'connect', user_id: currentUser.id }));
                     ws.send(JSON.stringify({ action: 'get_rooms' }));
-
-                    // Сбрасываем таймер реконнекта
                     if (wsReconnectTimer) {
                         clearTimeout(wsReconnectTimer);
                         wsReconnectTimer = null;
@@ -1394,14 +1465,13 @@
                     try {
                         const data = JSON.parse(event.data);
                         handleWSMessage(data);
-                    } catch (e) {
-                        console.error('WS message parse error:', e);
+                    } catch(e) {
+                        console.error('WS parse error:', e);
                     }
                 };
 
-                ws.onclose = (event) => {
-                    console.log('🔌 WebSocket disconnected:', event.code, event.reason);
-                    // Реконнект через 3 секунды
+                ws.onclose = () => {
+                    console.log('🔌 WS disconnected');
                     if (!wsReconnectTimer) {
                         wsReconnectTimer = setTimeout(() => {
                             wsReconnectTimer = null;
@@ -1410,97 +1480,69 @@
                     }
                 };
 
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
+                ws.onerror = (err) => {
+                    console.error('WS error:', err);
                 };
-            } catch (e) {
-                console.error('WebSocket connection error:', e);
+            } catch(e) {
+                console.error('WS connect error:', e);
             }
         }
 
         function handleWSMessage(data) {
-            console.log('📨 WS:', data.type, data);
-
             switch (data.type) {
                 case 'connected':
-                    console.log('✅ Connected to server:', data.message);
+                    console.log('✅ WS:', data.message);
                     break;
-
                 case 'rooms_list':
                     gameState.rooms = data.rooms || [];
                     renderRoomsList();
                     break;
-
                 case 'room_created':
                     gameState.currentRoom = data.room_id;
                     gameState.isCreator = true;
                     showMyRoom(data);
                     showToast(`Комната #${data.room_id} создана!`);
                     break;
-
                 case 'joined_room':
                     gameState.currentRoom = data.room_id;
                     gameState.isCreator = false;
                     showMyRoom(data);
-                    showToast('Вы присоединились к комнате!');
+                    showToast('Вы присоединились!');
                     break;
-
                 case 'player_joined':
-                    if (gameState.currentRoom === data.room_id || true) {
-                        updateRoomDisplay(data);
-                    }
+                    updateRoomDisplay(data);
                     break;
-
                 case 'player_left':
-                    if (gameState.currentRoom === data.room_id || true) {
-                        updateRoomDisplay(data);
-                    }
+                    updateRoomDisplay(data);
                     break;
-
                 case 'left_room':
                     hideMyRoom();
-                    showToast(data.message || 'Вы вышли из комнаты');
+                    showToast('Вы вышли из комнаты');
                     break;
-
                 case 'timer_update':
-                    if (gameState.currentRoom && elements.myRoomTimer) {
-                        elements.myRoomTimer.textContent = data.time_left;
-                    }
+                    if (els.myRoomTimer) els.myRoomTimer.textContent = data.time_left;
                     break;
-
                 case 'game_starting':
-                    showToast('🎰 Игра начинается! Вращение...');
-                    if (gameState.currentRoom) {
-                        elements.startGameBtn.style.display = 'none';
-                    }
+                    showToast('🎰 Игра начинается!');
+                    if (els.startGameBtn) els.startGameBtn.style.display = 'none';
                     break;
-
                 case 'game_result':
                     showMultiplayerResult(data);
                     break;
-
                 case 'game_cancelled':
                     showToast(data.message || 'Игра отменена');
                     hideMyRoom();
                     fetchUserData();
                     break;
-
                 case 'room_closed':
-                    if (gameState.currentRoom === data.room_id || !gameState.currentRoom) {
-                        hideMyRoom();
-                        fetchUserData();
-                    }
+                    hideMyRoom();
+                    fetchUserData();
                     break;
-
                 case 'error':
                     showToast(data.message || 'Ошибка');
                     break;
-
                 case 'pong':
                     break;
-
-                default:
-                    console.log('Unknown WS message:', data);
             }
         }
 
@@ -1518,162 +1560,93 @@
         // ═══════════════════════════════════════
 
         function createRoom() {
-            const betAmount = parseFloat(elements.mpBetAmount.value) || 0;
-
-            if (betAmount <= 0) {
-                showToast('Введите сумму ставки!');
-                return;
-            }
-
-            if (betAmount > gameState.balance) {
-                showToast('Недостаточно средств!');
-                return;
-            }
-
+            const betAmount = parseFloat(els.mpBetAmount.value) || 0;
+            if (betAmount <= 0) { showToast('Введите сумму ставки!'); return; }
+            if (betAmount > gameState.balance) { showToast('Недостаточно средств!'); return; }
             vibrate(20);
-            sendWS({
-                action: 'create_room',
-                user_id: currentUser.id,
-                bet_amount: betAmount,
-                avatar: getRandomAvatar()
-            });
-
-            // Оптимистично обновляем баланс
+            sendWS({ action: 'create_room', user_id: currentUser.id, bet_amount: betAmount, avatar: getRandomAvatar() });
             gameState.balance -= betAmount;
             updateBalanceDisplay();
         }
 
         function joinRoom(roomId) {
-            const betAmount = parseFloat(elements.mpBetAmount.value) || 0;
-
-            if (betAmount <= 0) {
-                showToast('Введите сумму ставки!');
-                return;
-            }
-
-            if (betAmount > gameState.balance) {
-                showToast('Недостаточно средств!');
-                return;
-            }
-
+            const betAmount = parseFloat(els.mpBetAmount.value) || 0;
+            if (betAmount <= 0) { showToast('Введите сумму ставки!'); return; }
+            if (betAmount > gameState.balance) { showToast('Недостаточно средств!'); return; }
             vibrate(20);
-            sendWS({
-                action: 'join_room',
-                user_id: currentUser.id,
-                room_id: roomId,
-                bet_amount: betAmount,
-                avatar: getRandomAvatar()
-            });
-
-            // Оптимистично обновляем баланс
+            sendWS({ action: 'join_room', user_id: currentUser.id, room_id: roomId, bet_amount: betAmount, avatar: getRandomAvatar() });
             gameState.balance -= betAmount;
             updateBalanceDisplay();
         }
 
         function leaveRoom() {
             if (!gameState.currentRoom) return;
-
             vibrate(15);
-            sendWS({
-                action: 'leave_room',
-                user_id: currentUser.id,
-                room_id: gameState.currentRoom
-            });
-
+            sendWS({ action: 'leave_room', user_id: currentUser.id, room_id: gameState.currentRoom });
             hideMyRoom();
             fetchUserData();
         }
 
         function startMultiplayerGame() {
             if (!gameState.currentRoom || !gameState.isCreator) return;
-
             vibrate(20);
-            sendWS({
-                action: 'start_game',
-                user_id: currentUser.id,
-                room_id: gameState.currentRoom
-            });
+            sendWS({ action: 'start_game', user_id: currentUser.id, room_id: gameState.currentRoom });
         }
 
         function showMyRoom(data) {
-            elements.myRoomPanel.classList.remove('hidden');
-            elements.myRoomId.textContent = data.room_id || gameState.currentRoom;
-            elements.myRoomBank.textContent = `${(data.bank || 0).toFixed(2)}$`;
-            elements.myRoomTimer.textContent = data.timer || 30;
-
-            if (data.players) {
-                renderRoomPlayers(data.players);
-            }
-
-            // Показываем кнопку запуска только создателю при >= 2 игроков
+            els.myRoomPanel.classList.remove('hidden');
+            els.myRoomId.textContent = data.room_id || gameState.currentRoom;
+            els.myRoomBank.textContent = `${(data.bank || 0).toFixed(2)}$`;
+            els.myRoomTimer.textContent = data.timer || 30;
+            if (data.players) renderRoomPlayers(data.players);
             if (gameState.isCreator && data.players && data.players.length >= 2) {
-                elements.startGameBtn.style.display = 'block';
+                els.startGameBtn.style.display = 'block';
             } else {
-                elements.startGameBtn.style.display = 'none';
+                els.startGameBtn.style.display = 'none';
             }
-
-            // Скрываем список комнат
-            elements.roomsList.innerHTML = '';
-            elements.noRoomsMsg.classList.add('hidden');
-            elements.roomsLoading.classList.add('hidden');
+            els.roomsList.innerHTML = '';
+            els.noRoomsMsg.classList.add('hidden');
+            els.roomsLoading.classList.add('hidden');
         }
 
         function hideMyRoom() {
-            elements.myRoomPanel.classList.add('hidden');
-            elements.mpResultPanel.classList.add('hidden');
+            els.myRoomPanel.classList.add('hidden');
+            els.mpResultPanel.classList.add('hidden');
             gameState.currentRoom = null;
             gameState.isCreator = false;
-            elements.startGameBtn.style.display = 'none';
-
-            // Обновляем список комнат
+            els.startGameBtn.style.display = 'none';
             sendWS({ action: 'get_rooms' });
         }
 
         function updateRoomDisplay(data) {
-            if (data.players) {
-                renderRoomPlayers(data.players);
-            }
-            if (data.bank !== undefined) {
-                elements.myRoomBank.textContent = `${data.bank.toFixed(2)}$`;
-            }
-
-            // Проверяем, можно ли запустить игру
+            if (data.players) renderRoomPlayers(data.players);
+            if (data.bank !== undefined) els.myRoomBank.textContent = `${data.bank.toFixed(2)}$`;
             if (gameState.isCreator && data.players && data.players.length >= 2) {
-                elements.startGameBtn.style.display = 'block';
+                els.startGameBtn.style.display = 'block';
             }
         }
 
         function renderRoomPlayers(players) {
-            elements.myRoomPlayers.innerHTML = '';
-            players.forEach(player => {
+            els.myRoomPlayers.innerHTML = '';
+            players.forEach(p => {
                 const badge = document.createElement('span');
                 badge.className = 'player-badge';
-                badge.style.backgroundColor = player.color || '#555';
-                badge.innerHTML = `
-                    <span class="player-avatar">${player.avatar || '🎲'}</span>
-                    ${escapeHTML(player.nickname || `Player ${player.user_id}`)}
-                    <span style="font-size:11px;opacity:0.8;">${(player.bet_amount || 0).toFixed(2)}$</span>
-                `;
-                elements.myRoomPlayers.appendChild(badge);
+                badge.style.backgroundColor = p.color || '#555';
+                badge.innerHTML = `<span class="player-avatar">${p.avatar || '🎲'}</span>${escapeHTML(p.nickname || 'Player')} <span style="font-size:10px;opacity:0.7;">${(p.bet_amount||0).toFixed(2)}$</span>`;
+                els.myRoomPlayers.appendChild(badge);
             });
         }
 
         function renderRoomsList() {
-            elements.roomsLoading.classList.add('hidden');
+            els.roomsLoading.classList.add('hidden');
+            const oldCards = els.roomsList.querySelectorAll('.room-card');
+            oldCards.forEach(c => c.remove());
 
             if (!gameState.rooms || gameState.rooms.length === 0) {
-                elements.noRoomsMsg.classList.remove('hidden');
-                // Очищаем старые карточки
-                const oldCards = elements.roomsList.querySelectorAll('.room-card');
-                oldCards.forEach(card => card.remove());
+                els.noRoomsMsg.classList.remove('hidden');
                 return;
             }
-
-            elements.noRoomsMsg.classList.add('hidden');
-
-            // Очищаем старые карточки
-            const oldCards = elements.roomsList.querySelectorAll('.room-card');
-            oldCards.forEach(card => card.remove());
+            els.noRoomsMsg.classList.add('hidden');
 
             gameState.rooms.forEach(room => {
                 const card = document.createElement('div');
@@ -1689,213 +1662,172 @@
                     </div>
                 `;
                 card.addEventListener('click', () => {
-                    if (room.players_count < 6) {
-                        joinRoom(room.room_id);
-                    } else {
-                        showToast('Комната заполнена');
-                    }
+                    if (room.players_count < 6) joinRoom(room.room_id);
+                    else showToast('Комната заполнена');
                 });
-                elements.roomsList.appendChild(card);
+                els.roomsList.appendChild(card);
             });
         }
 
         function showMultiplayerResult(data) {
-            elements.mpResultPanel.classList.remove('hidden');
-
+            els.mpResultPanel.classList.remove('hidden');
             if (data.winner_id === currentUser.id) {
-                elements.mpResultEmoji.textContent = '🏆';
-                elements.mpResultText.textContent = 'ВЫ ПОБЕДИЛИ!';
-                elements.mpResultAmount.textContent = `+${(data.win_amount || 0).toFixed(2)}$`;
-                elements.mpResultAmount.style.color = '#00ff41';
+                els.mpResultEmoji.textContent = '🏆';
+                els.mpResultText.textContent = 'ВЫ ПОБЕДИЛИ!';
+                els.mpResultAmount.textContent = `+${(data.win_amount || 0).toFixed(2)}$`;
+                els.mpResultAmount.style.color = '#00ff55';
                 playWinSound();
             } else {
-                elements.mpResultEmoji.textContent = '😢';
-                elements.mpResultText.textContent = `Победил: ${data.winner_nickname || 'Игрок'}`;
-                elements.mpResultAmount.textContent = 'Повезёт в следующий раз!';
-                elements.mpResultAmount.style.color = '#e63946';
+                els.mpResultEmoji.textContent = '😢';
+                els.mpResultText.textContent = `Победил: ${data.winner_nickname || 'Игрок'}`;
+                els.mpResultAmount.textContent = 'Повезёт в следующий раз!';
+                els.mpResultAmount.style.color = '#e04040';
                 playLoseSound();
             }
-
-            // Обновляем баланс
             fetchUserData();
-
-            // Скрываем результат через 5 секунд
             setTimeout(() => {
-                elements.mpResultPanel.classList.add('hidden');
+                els.mpResultPanel.classList.add('hidden');
                 hideMyRoom();
             }, 5000);
         }
 
         function getRandomAvatar() {
-            const avatars = ['🎲', '🎯', '🎰', '🃏', '🎪', '👑', '💎', '🌟', '🔥', '🍀', '🎭', '🦁'];
-            return avatars[Math.floor(Math.random() * avatars.length)];
+            return ['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'][Math.floor(Math.random()*10)];
         }
 
         function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
         }
 
         // ═══════════════════════════════════════
-        // ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ
+        // РЕЖИМЫ
         // ═══════════════════════════════════════
 
         function switchMode(mode) {
             gameState.mode = mode;
             gameState.selectedBet = null;
-            $$('.bet-btn').forEach(btn => btn.classList.remove('selected'));
+            $$('.bet-btn').forEach(b => b.classList.remove('selected'));
 
             if (mode === 'single') {
-                elements.tabSingle.classList.add('active');
-                elements.tabMulti.classList.remove('active');
-                elements.singleGameContent.style.display = 'block';
-                elements.multiplayerGameContent.style.display = 'none';
+                els.tabSingle.classList.add('active');
+                els.tabMulti.classList.remove('active');
+                els.singleGameContent.style.display = 'block';
+                els.multiplayerGameContent.style.display = 'none';
                 hideMyRoom();
             } else {
-                elements.tabMulti.classList.add('active');
-                elements.tabSingle.classList.remove('active');
-                elements.singleGameContent.style.display = 'none';
-                elements.multiplayerGameContent.style.display = 'block';
-                // Подключаем WebSocket и запрашиваем комнаты
+                els.tabMulti.classList.add('active');
+                els.tabSingle.classList.remove('active');
+                els.singleGameContent.style.display = 'none';
+                els.multiplayerGameContent.style.display = 'block';
                 connectWebSocket();
-                setTimeout(() => {
-                    sendWS({ action: 'get_rooms' });
-                }, 500);
+                setTimeout(() => sendWS({ action: 'get_rooms' }), 500);
             }
-
             vibrate(10);
         }
 
         // ═══════════════════════════════════════
-        // ОБРАБОТЧИКИ СОБЫТИЙ
+        // СОБЫТИЯ
         // ═══════════════════════════════════════
 
-        // Табы
-        elements.tabSingle.addEventListener('click', () => switchMode('single'));
-        elements.tabMulti.addEventListener('click', () => switchMode('multiplayer'));
+        els.tabSingle.addEventListener('click', () => switchMode('single'));
+        els.tabMulti.addEventListener('click', () => switchMode('multiplayer'));
 
-        // Выбор ставки
-        elements.betGrid.addEventListener('click', (e) => {
+        els.betGrid.addEventListener('click', (e) => {
             const btn = e.target.closest('.bet-btn');
-            if (btn && btn.dataset.bet) {
-                selectBet(btn.dataset.bet);
-            }
+            if (btn && btn.dataset.bet) selectBet(btn.dataset.bet);
         });
 
-        // Кнопка SPIN
-        elements.spinBtn.addEventListener('click', () => {
-            vibrate(30);
-            placeBet();
-        });
+        els.spinBtn.addEventListener('click', () => { vibrate(30); placeBet(); });
 
-        // Быстрые ставки
         $$('.quick-bet-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                elements.betAmount.value = btn.dataset.amount;
-                vibrate(10);
-            });
+            btn.addEventListener('click', () => { els.betAmount.value = btn.dataset.amount; vibrate(10); });
         });
 
-        // Закрытие результата
-        elements.resultCloseBtn.addEventListener('click', closeResult);
-        elements.resultOverlay.addEventListener('click', (e) => {
-            if (e.target === elements.resultOverlay) {
-                closeResult();
+        els.resultCloseBtn.addEventListener('click', closeResult);
+        els.resultOverlay.addEventListener('click', (e) => {
+            if (e.target === els.resultOverlay) closeResult();
+        });
+
+        els.createRoomBtn.addEventListener('click', createRoom);
+        els.leaveRoomBtn.addEventListener('click', leaveRoom);
+        els.startGameBtn.addEventListener('click', startMultiplayerGame);
+        els.refreshRoomsBtn.addEventListener('click', () => { sendWS({ action: 'get_rooms' }); vibrate(10); });
+
+        // Free spin toggle
+        els.freeSpinToggle.addEventListener('click', function(e) {
+            if (e.target === els.useFreeSpin) return;
+            els.useFreeSpin.checked = !els.useFreeSpin.checked;
+            updateFreeSpinToggle();
+            vibrate(8);
+        });
+
+        els.useFreeSpin.addEventListener('change', updateFreeSpinToggle);
+
+        function updateFreeSpinToggle() {
+            if (els.useFreeSpin.checked) {
+                els.freeSpinToggle.classList.add('checked');
+            } else {
+                els.freeSpinToggle.classList.remove('checked');
+            }
+        }
+
+        // Поддержка — открывает бота
+        els.supportLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (tg) {
+                tg.openTelegramLink('https://t.me/lnRoulette_bot?start=support');
+            } else {
+                window.open('https://t.me/lnRoulette_bot?start=support', '_blank');
             }
         });
 
-        // Мультиплеер
-        elements.createRoomBtn.addEventListener('click', createRoom);
-        elements.leaveRoomBtn.addEventListener('click', leaveRoom);
-        elements.startGameBtn.addEventListener('click', startMultiplayerGame);
-        elements.refreshRoomsBtn.addEventListener('click', () => {
-            sendWS({ action: 'get_rooms' });
-            vibrate(10);
-        });
-
-        // Чекбокс бесплатного спина
-        elements.useFreeSpin.addEventListener('change', () => {
-            if (elements.useFreeSpin.checked && gameState.freeSpins <= 0) {
-                elements.useFreeSpin.checked = false;
-                showToast('Нет бесплатных спинов!');
-            }
-        });
-
-        // Обработка клавиатуры для оверлея результата
+        // Клавиатура
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !elements.resultOverlay.classList.contains('hidden')) {
-                closeResult();
-            }
-            if (e.key === 'Enter' && gameState.mode === 'single' && !gameState.isSpinning) {
-                placeBet();
-            }
+            if (e.key === 'Escape' && !els.resultOverlay.classList.contains('hidden')) closeResult();
+            if (e.key === 'Enter' && gameState.mode === 'single' && !gameState.isSpinning) placeBet();
         });
 
         // ═══════════════════════════════════════
-        // ИНИЦИАЛИЗАЦИЯ
+        // INIT
         // ═══════════════════════════════════════
 
         async function init() {
-            console.log('🎡 LN Roulette Mini App initializing...');
-            console.log('👤 User:', currentUser);
-
-            // Создаём частицы
+            console.log('🎡 ROULETTE init...');
             createParticles();
+            drawWheel();
 
-            // Загружаем данные пользователя
             await fetchUserData();
 
-            // Определяем режим из URL параметра
             const urlParams = new URLSearchParams(window.location.search);
-            const modeParam = urlParams.get('mode');
-            if (modeParam === 'multiplayer') {
-                switchMode('multiplayer');
-            }
+            if (urlParams.get('mode') === 'multiplayer') switchMode('multiplayer');
 
-            // Пинг WebSocket каждые 25 секунд для поддержания соединения
             setInterval(() => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    sendWS({ action: 'ping' });
-                }
+                if (ws && ws.readyState === WebSocket.OPEN) sendWS({ action: 'ping' });
             }, 25000);
 
-            console.log('✅ Initialization complete');
-            console.log('💰 Balance:', gameState.balance);
-            console.log('🎁 Free spins:', gameState.freeSpins);
+            console.log('✅ Ready');
         }
 
-        // Запуск
+        // Resize observer для перерисовки колеса
+        new ResizeObserver(() => drawWheel()).observe(els.wheelWrapper);
+
         init();
 
-        // Обработка закрытия страницы
         window.addEventListener('beforeunload', () => {
             if (gameState.currentRoom) {
-                // Пытаемся выйти из комнаты
-                try {
-                    sendWS({
-                        action: 'leave_room',
-                        user_id: currentUser.id,
-                        room_id: gameState.currentRoom
-                    });
-                } catch (e) {}
+                try { sendWS({ action: 'leave_room', user_id: currentUser.id, room_id: gameState.currentRoom }); } catch(e) {}
             }
-            if (ws) {
-                ws.close();
-            }
+            if (ws) ws.close();
         });
 
-        // Обработка видимости страницы
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 fetchUserData();
-                if (gameState.mode === 'multiplayer') {
-                    connectWebSocket();
-                }
+                if (gameState.mode === 'multiplayer') connectWebSocket();
             }
         });
-
-        console.log('🎰 LN Roulette ready!');
     </script>
 </body>
 </html>
