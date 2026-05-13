@@ -386,27 +386,6 @@
             });
         }
 
-                // ═══════════════════════════════════════
-        // MULTIPLAYER — ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
-        // ═══════════════════════════════════════
-        var mpMyRoom=null;
-        var mpIsCreator=false;
-
-        function switchMPTab(tab){
-            if(tab==='lobby'){
-                var lobby=$('#mpLobbyArea');
-                var room=$('#mpRoomArea');
-                if(lobby)lobby.classList.remove('hidden');
-                if(room)room.classList.add('hidden');
-                sendWS({action:'mp_get_rooms'});
-            }else{
-                var lobby=$('#mpLobbyArea');
-                var room=$('#mpRoomArea');
-                if(lobby)lobby.classList.add('hidden');
-                if(room)room.classList.remove('hidden');
-            }
-        }
-
         // ═══════════════════════════════════════
         // WEBSOCKET
         // ═══════════════════════════════════════
@@ -442,8 +421,6 @@
         // ═══════════════════════════════════════
         var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];
         var mpWheelRotation=0;
-        var mpMyRoom=null; // ID комнаты где я сейчас
-        var mpIsCreator=false;
 
         // Переключение вкладок внутри мультиплеера
         var mpTab='lobby'; // lobby | room
