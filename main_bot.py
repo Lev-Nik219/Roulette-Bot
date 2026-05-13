@@ -262,10 +262,15 @@ async def api_get_user(request: Request) -> Response:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         if not user_id: return json_response({"error": "user_id required"}, status=400)
+        
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
+        
+        # Авто-создание пользователя если не существует
         user = await get_user(user_id)
-        if not user: return json_response({"error": "User not found"}, status=404)
+        if not user:
+            user = await create_user_if_not_exists(user_id)
+        
         return json_response({
             "user_id": user["user_id"], "username": user["username"], "balance": user["balance"],
             "total_games": user["total_games"], "total_wins": user["total_wins"],
