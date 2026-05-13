@@ -216,17 +216,31 @@
         <div class="center-banner" id="centerBanner"></div>
     </div>
         <script>
-        const tg = window.Telegram?.WebApp;
-        let user = { id: 1167503795, username: 'player', firstName: 'Player' };
-
-        if (tg) {
-            tg.ready(); tg.expand();
-            if (tg.initDataUnsafe?.user) {
-                user.id = tg.initDataUnsafe.user.id;
-                user.username = tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player';
-                user.firstName = tg.initDataUnsafe.user.first_name || 'Player';
-            }
+    const tg = window.Telegram?.WebApp;
+    let user = null;
+    
+    if (tg) {
+        tg.ready(); tg.expand();
+        if (tg.initDataUnsafe?.user) {
+            user = {
+                id: tg.initDataUnsafe.user.id,
+                username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player',
+                firstName: tg.initDataUnsafe.user.first_name || 'Player'
+            };
         }
+    }
+    
+    // Если не в Telegram — используем URL параметр
+    if (!user) {
+        const params = new URLSearchParams(window.location.search);
+        const uid = params.get('user_id');
+        if (uid) {
+            user = { id: parseInt(uid), username: 'player', firstName: 'Player' };
+        } else {
+            // Только для отладки — уберите в продакшене
+            user = { id: Math.floor(Math.random() * 1000000), username: 'guest', firstName: 'Guest' };
+        }
+    }
 
         const API = 'https://roulette-bot-8i8t.onrender.com';
         const WS_URL = API.replace('https','wss').replace('http','ws');

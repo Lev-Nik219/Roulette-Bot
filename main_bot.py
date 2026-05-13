@@ -523,21 +523,35 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
 async def admin_players_list(callback: CallbackQuery):
     await callback.answer()
     if callback.from_user.id not in config.ADMIN_IDS: return
-    async with sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users") as cursor:
-        row = await cursor.fetchone()
-        total = row["cnt"] if row else 0
-    async with sqlite_pool.execute("SELECT user_id, username, nickname, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20") as cursor:
-        players = await cursor.fetchall()
+    
+    # Получаем ВСЕХ пользователей
+    cursor = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users")
+    row = await cursor.fetchone()
+    total = row["cnt"] if row else 0
+    
+    # Получаем с сортировкой
+    cursor = await sqlite_pool.execute(
+        "SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20"
+    )
+    players = await cursor.fetchall()
+    
     if not players:
-        await callback.message.edit_text("👥 Список игроков пуст\nВсего игроков: 0", reply_markup=get_back_to_admin_keyboard()); return
-    text = f"👥 Список игроков (Топ-20 из {total})\n\n"
+        await callback.message.edit_text(
+            f"👥 Список игроков пуст\nВсего игроков: {total}", 
+            reply_markup=get_back_to_admin_keyboard()
+        )
+        return
+    
+    text = f"👥 Список игроков (Всего: {total})\n\n"
     for p in players:
-        nick = (p["nickname"] or p["username"] or str(p["user_id"]))[:20]
+        nick = (p["username"] or str(p["user_id"]))[:20]
         nick = nick.replace('_','\\_').replace('*','\\*').replace('`','\\`').replace('[','\\[')
         text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games']} | 🏆 {p['total_wins']}\n"
+    
     try:
         await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
-    except: pass
+    except:
+        pass
 
 @admin_router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: CallbackQuery):
