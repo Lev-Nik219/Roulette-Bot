@@ -405,7 +405,7 @@
             switch(data.type){
                 case 'mp_rooms_list':renderMPRooms(data.rooms||[]);break;
                 case 'mp_state':updateMPRoom(data);break;
-                case 'mp_timer':$('#mpTimer').textContent=data.time;break;
+                case 'mp_timer':$('#mpRoomTimer').textContent=data.time;break;
                 case 'mp_spinning':mpSpinWheel(data);break;
                 case 'mp_result':showMPResult(data);break;
                 case 'mp_round_reset':resetMPRoom();break;
@@ -610,7 +610,8 @@
         if(urlParams.get('mode')==='multiplayer'){
             $$('.tab-btn').forEach(function(x){x.classList.remove('active')});
             var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');
-            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){sendWS({action:'mp_join'})},500);}
+            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){switchMPTab('lobby');
+sendWS({action:'mp_get_rooms'});},500);}
         }
         setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
         window.addEventListener('beforeunload',function(){if(ws)ws.close()});
