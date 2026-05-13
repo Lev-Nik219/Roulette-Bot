@@ -2233,9 +2233,8 @@ if __name__ == "__main__":
     app = create_app()
     logger.info(f"Starting web server on {config.WEBHOOK_HOST}:{config.WEBHOOK_PORT}")
 
-    # Запускаем startup вручную
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(on_startup())
+    # Запускаем startup через on_startup в app
+    app.on_startup.append(lambda app: on_startup())
 
     web.run_app(
         app,
