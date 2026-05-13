@@ -62,27 +62,27 @@
 
         .game-area{background:rgba(0,0,0,0.3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:24px;padding:20px;margin-bottom:16px;text-align:center;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 40px rgba(0,0,0,0.5)}
 
-        /* WHEEL */
+        /* WHEEL - яркий */
         .roulette-wheel-container{position:relative;width:280px;height:280px;margin:20px auto;cursor:pointer;animation:wheelGlow 2s ease-in-out infinite}
         .roulette-wheel-container:active{transform:scale(0.98)}
-        .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #3a2a10;background:#1a0f00;box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 30px rgba(0,0,0,0.4);position:relative;overflow:hidden}
+        .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:#2a1500;box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 30px rgba(0,0,0,0.4);position:relative;overflow:hidden}
         .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);
             background:conic-gradient(from 0deg,
-                #1a6b1a 0deg 9.73deg,#1a1a1a 9.73deg 19.46deg,#1a6b1a 19.46deg 29.19deg,#1a1a1a 29.19deg 38.92deg,
-                #1a6b1a 38.92deg 48.65deg,#1a1a1a 48.65deg 58.38deg,#1a6b1a 58.38deg 68.11deg,#1a1a1a 68.11deg 77.84deg,
-                #1a6b1a 77.84deg 87.57deg,#1a1a1a 87.57deg 97.30deg,#1a6b1a 97.30deg 107.03deg,#1a1a1a 107.03deg 116.76deg,
-                #1a6b1a 116.76deg 126.49deg,#1a1a1a 126.49deg 136.22deg,#1a6b1a 136.22deg 145.95deg,#1a1a1a 145.95deg 155.68deg,
-                #1a6b1a 155.68deg 165.41deg,#1a1a1a 165.41deg 175.14deg,#1a6b1a 175.14deg 184.87deg,#1a1a1a 184.87deg 194.60deg,
+                #2d8a2d 0deg 9.73deg,#222 9.73deg 19.46deg,#2d8a2d 19.46deg 29.19deg,#222 29.19deg 38.92deg,
+                #2d8a2d 38.92deg 48.65deg,#222 48.65deg 58.38deg,#2d8a2d 58.38deg 68.11deg,#222 68.11deg 77.84deg,
+                #2d8a2d 77.84deg 87.57deg,#222 87.57deg 97.30deg,#2d8a2d 97.30deg 107.03deg,#222 107.03deg 116.76deg,
+                #2d8a2d 116.76deg 126.49deg,#222 126.49deg 136.22deg,#2d8a2d 136.22deg 145.95deg,#222 145.95deg 155.68deg,
+                #2d8a2d 155.68deg 165.41deg,#222 165.41deg 175.14deg,#2d8a2d 175.14deg 184.87deg,#222 184.87deg 194.60deg,
                 #ffd700 194.60deg 204.33deg,
-                #1a1a1a 204.33deg 214.06deg,#1a6b1a 214.06deg 223.79deg,#1a1a1a 223.79deg 233.52deg,
-                #1a6b1a 233.52deg 243.25deg,#1a1a1a 243.25deg 252.98deg,#1a6b1a 252.98deg 262.71deg,
-                #1a1a1a 262.71deg 272.44deg,#1a6b1a 272.44deg 282.17deg,#1a1a1a 282.17deg 291.90deg,
-                #1a6b1a 291.90deg 301.63deg,#1a1a1a 301.63deg 311.36deg,#1a6b1a 311.36deg 321.09deg,
-                #1a1a1a 321.09deg 330.82deg,#1a6b1a 330.82deg 340.55deg,#1a1a1a 340.55deg 350.28deg,
-                #1a6b1a 350.28deg 360deg);
+                #222 204.33deg 214.06deg,#2d8a2d 214.06deg 223.79deg,#222 223.79deg 233.52deg,
+                #2d8a2d 233.52deg 243.25deg,#222 243.25deg 252.98deg,#2d8a2d 252.98deg 262.71deg,
+                #222 262.71deg 272.44deg,#2d8a2d 272.44deg 282.17deg,#222 282.17deg 291.90deg,
+                #2d8a2d 291.90deg 301.63deg,#222 301.63deg 311.36deg,#2d8a2d 311.36deg 321.09deg,
+                #222 321.09deg 330.82deg,#2d8a2d 330.82deg 340.55deg,#222 340.55deg 350.28deg,
+                #2d8a2d 350.28deg 360deg);
             z-index:1}
         .roulette-ball{position:absolute;width:14px;height:14px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-7px;margin-top:-124px;box-shadow:0 0 12px rgba(255,255,255,0.8);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5}
-        .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#8d6e63,#5d4037);border-radius:50%;border:3px solid #3e2723;z-index:4}
+        .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#a08060,#6d4c30);border-radius:50%;border:3px solid #4a3020;z-index:4}
         .roulette-result-num{font-size:44px;font-weight:800;min-height:55px;margin:6px 0}
 
         /* BETS */
@@ -90,7 +90,7 @@
         .bet-option{background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.1);color:white;padding:10px 14px;border-radius:25px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.3s;min-width:70px}
         .bet-option:active{transform:scale(0.94)}
         .bet-option.selected{background:linear-gradient(180deg,#4CAF50,#2E7D32);color:white;font-weight:800;box-shadow:0 6px 20px rgba(76,175,80,0.5);border-color:#4CAF50}
-        .bet-option.red-sel{background:linear-gradient(180deg,#1a6b1a,#0d3d0d)!important;box-shadow:0 6px 20px rgba(76,175,80,0.4)!important;border-color:#4CAF50!important}
+        .bet-option.red-sel{background:linear-gradient(180deg,#2d8a2d,#0d3d0d)!important;box-shadow:0 6px 20px rgba(76,175,80,0.4)!important;border-color:#4CAF50!important}
         .bet-option.black-sel{background:linear-gradient(180deg,#333,#000)!important;box-shadow:0 6px 20px rgba(255,255,255,0.2)!important;border-color:#888!important}
 
         input[type="number"]{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:white;font-size:16px;margin-bottom:10px;outline:none;text-align:center}
@@ -217,13 +217,11 @@
     </div>
 
     <script>
-        // ═══════════════════════════════════════
         const tg = window.Telegram?.WebApp;
         let user = { id: 1167503795, username: 'player', firstName: 'Player' };
 
         if (tg) {
-            tg.ready();
-            tg.expand();
+            tg.ready(); tg.expand();
             if (tg.initDataUnsafe?.user) {
                 user.id = tg.initDataUnsafe.user.id;
                 user.username = tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player';
@@ -245,8 +243,7 @@
         const ctx = canvas.getContext('2d');
         let particles = [];
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
 
         class Particle {
             constructor() { this.reset(); }
@@ -268,13 +265,13 @@
         function playSpinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
         function playWinSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
         function playLoseSound(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
-        function spawnConfetti(){const c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(let i=0;i<30;i++){const e=document.createElement('div');e.className='confetti';e.style.left=`${35+Math.random()*30}%`;e.style.top=`${45+Math.random()*15}%`;e.style.width=`${5+Math.random()*7}px`;e.style.height=`${5+Math.random()*7}px`;e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=`${1.5+Math.random()*1.5}s`;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)}}
+        function spawnConfetti(){var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}
 
         // API
         async function api(endpoint,data={}){
             try{const r=await fetch(`${API}${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,...data})});
             if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||`HTTP ${r.status}`);}
-            return await r.json()}catch(e){toast(`Ошибка: ${e.message}`);throw e}
+            return await r.json()}catch(e){toast('Ошибка: '+e.message);throw e}
         }
 
         async function loadUser(){
@@ -282,27 +279,27 @@
         }
 
         function updateUI(){
-            $('#balanceDisplay').textContent=`${state.balance.toFixed(2)}$`;
+            $('#balanceDisplay').textContent=state.balance.toFixed(2)+'$';
             $('#freeSpinCount').textContent=state.freeSpins;
         }
 
-        function toast(msg){const e=document.querySelector('.toast');if(e)e.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300)},2000)}
-        function vibrate(ms=12){if(navigator.vibrate)navigator.vibrate(ms)}
+        function toast(msg){const e=document.querySelector('.toast');if(e)e.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000)}
+        function vibrate(ms){ms=ms||12;if(navigator.vibrate)navigator.vibrate(ms)}
 
         // Tabs
-        $$('.tab-btn').forEach(b=>{b.addEventListener('click',()=>{$$('.tab-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.tab-content').forEach(x=>x.classList.remove('active'));const t=$(`#tab-${b.dataset.tab}`);if(t)t.classList.add('active');state.mode=b.dataset.tab;if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(()=>sendWS({action:'get_rooms'}),500)}vibrate()})});
+        $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');state.mode=b.dataset.tab;if(b.dataset.tab==='multiplayer'){connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}vibrate()})});
 
         // Bet selection
-        $$('#betGrid .bet-option').forEach(b=>{b.addEventListener('click',()=>{if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(x=>{x.classList.remove('selected','red-sel','black-sel')});b.classList.add('selected');if(b.dataset.bet==='red')b.classList.add('red-sel');if(b.dataset.bet==='black')b.classList.add('black-sel');state.selectedBet=b.dataset.bet;vibrate()})});
-        $$('[data-quick]').forEach(b=>{b.addEventListener('click',()=>{$('#betAmount').value=b.dataset.quick;vibrate()})});
+        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});b.classList.add('selected');if(b.dataset.bet==='red')b.classList.add('red-sel');if(b.dataset.bet==='black')b.classList.add('black-sel');state.selectedBet=b.dataset.bet;vibrate()})});
+        $$('[data-quick]').forEach(function(b){b.addEventListener('click',function(){$('#betAmount').value=b.dataset.quick;vibrate()})});
         $('#freeSpinToggle').addEventListener('click',function(){if(state.freeSpins<=0){toast('Нет бесплатных спинов');return}this.classList.toggle('checked');vibrate()});
 
         // Spin on wheel click
-        $('#wheelClickArea').addEventListener('click',async()=>{
+        $('#wheelClickArea').addEventListener('click',async function(){
             if(state.isSpinning)return;
             if(!state.selectedBet){toast('Выберите ставку!');return}
-            const useFree=$('#freeSpinToggle').classList.contains('checked');
-            const amount=parseFloat($('#betAmount').value)||0;
+            var useFree=$('#freeSpinToggle').classList.contains('checked');
+            var amount=parseFloat($('#betAmount').value)||0;
             if(!useFree&&amount<=0){toast('Введите сумму!');return}
             if(!useFree&&amount>state.balance){toast('Недостаточно средств!');return}
             if(useFree&&state.freeSpins<=0){toast('Нет бесплатных спинов!');return}
@@ -310,7 +307,7 @@
             $('#wheelClickArea').style.opacity='0.85';
             vibrate(30);
             try{
-                const result=await api('/api/game/place_bet',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
+                var result=await api('/api/game/place_bet',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
                 await spinWheel(result.number);
                 state.balance=result.new_balance;
                 state.freeSpins=result.free_spins;
@@ -320,7 +317,7 @@
                 updateUI();
                 showBanner(result);
                 $('#balanceCard').classList.add('wave');
-                setTimeout(()=>$('#balanceCard').classList.remove('wave'),600);
+                setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
             }catch(e){toast('Ошибка игры');loadUser()}
             finally{
                 state.isSpinning=false;
@@ -330,47 +327,47 @@
         });
 
         function spinWheel(targetNum){
-            return new Promise(resolve=>{
-                const ring=$('#rouletteRing');
-                const numbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-                const sector=360/37;
-                const idx=numbers.indexOf(targetNum);
-                const angle=sector*idx+sector/2;
-                const spins=5+Math.floor(Math.random()*5);
+            return new Promise(function(resolve){
+                var ring=$('#rouletteRing');
+                var numbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+                var sector=360/37;
+                var idx=numbers.indexOf(targetNum);
+                var angle=sector*idx+sector/2;
+                var spins=5+Math.floor(Math.random()*5);
                 wheelRotation+=spins*360+(360-wheelRotation%360)+angle;
-                ring.style.transform=`rotate(${wheelRotation}deg)`;
+                ring.style.transform='rotate('+wheelRotation+'deg)';
                 playSpinSound();
                 setTimeout(resolve,5000);
             });
         }
 
         function showBanner(result){
-            const b=$('#centerBanner');
+            var b=$('#centerBanner');
             b.classList.remove('win','lose','show','hide');
             void b.offsetWidth;
             if(result.is_win){
-                b.innerHTML=`🎉<br>+${result.win_amount.toFixed(2)}$<br><span style="font-size:14px;">ПОБЕДА!</span>`;
+                b.innerHTML='🎉<br>+'+result.win_amount.toFixed(2)+'$<br><span style="font-size:14px;">ПОБЕДА!</span>';
                 b.classList.add('win');spawnConfetti();playWinSound();
             }else{
-                b.innerHTML=`😢<br>-${$('#betAmount').value||'0'}$<br><span style="font-size:14px;">Проигрыш</span>`;
+                b.innerHTML='😢<br>-'+($('#betAmount').value||'0')+'$<br><span style="font-size:14px;">Проигрыш</span>';
                 b.classList.add('lose');playLoseSound();
             }
             b.classList.add('show');
-            const cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
+            var cn={red:'ЗЕЛЁНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
             $('#resultNum').textContent=result.number;
             $('#resultNum').style.color=result.color==='red'?'#4CAF50':result.color==='green'?'#ffd700':'#e8e8e8';
-            $('#resultText').innerHTML=`Выпало: <span style="font-weight:700;">${result.number} ${cn[result.color]||''}</span>`;
-            setTimeout(()=>{b.classList.add('hide');b.classList.remove('show')},2500);
+            $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
+            setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},2500);
         }
 
         // WebSocket
         function connectWS(){
             if(ws&&ws.readyState===WebSocket.OPEN)return;
             try{
-                ws=new WebSocket(`${WS_URL}/ws`);
-                ws.onopen=()=>{ws.send(JSON.stringify({action:'connect',user_id:user.id}));ws.send(JSON.stringify({action:'get_rooms'}))};
-                ws.onmessage=e=>{try{handleWS(JSON.parse(e.data))}catch(ex){}};
-                ws.onclose=()=>setTimeout(connectWS,3000);
+                ws=new WebSocket(WS_URL+'/ws');
+                ws.onopen=function(){ws.send(JSON.stringify({action:'connect',user_id:user.id}));ws.send(JSON.stringify({action:'get_rooms'}))};
+                ws.onmessage=function(e){try{handleWS(JSON.parse(e.data))}catch(ex){}};
+                ws.onclose=function(){setTimeout(connectWS,3000)};
             }catch(e){}
         }
 
@@ -393,14 +390,14 @@
         }
 
         function renderRooms(rooms){
-            const list=$('#roomsList');list.innerHTML='';
+            var list=$('#roomsList');list.innerHTML='';
             if(!rooms||!rooms.length){list.innerHTML='<div style="text-align:center;opacity:0.4;padding:16px;">Нет активных комнат</div>';return}
-            rooms.forEach(r=>{
-                const card=document.createElement('div');card.className='room-card';
-                card.innerHTML=`<div class="room-header"><span class="room-id">#${r.room_id}</span><span class="room-timer">⏱ ${r.time_left||0}с</span></div><div style="display:flex;justify-content:space-between;margin-top:6px;"><span>👥 ${r.players_count||0}/6</span><span class="room-bank">💰 ${(r.bank||0).toFixed(2)}$</span></div>`;
-                card.addEventListener('click',()=>{
+            rooms.forEach(function(r){
+                var card=document.createElement('div');card.className='room-card';
+                card.innerHTML='<div class="room-header"><span class="room-id">#'+r.room_id+'</span><span class="room-timer">⏱ '+(r.time_left||0)+'с</span></div><div style="display:flex;justify-content:space-between;margin-top:6px;"><span>👥 '+(r.players_count||0)+'/6</span><span class="room-bank">💰 '+(r.bank||0).toFixed(2)+'$</span></div>';
+                card.addEventListener('click',function(){
                     if(r.players_count>=6){toast('Комната заполнена');return}
-                    const amt=parseFloat($('#mpBetAmount').value)||0;
+                    var amt=parseFloat($('#mpBetAmount').value)||0;
                     if(amt<=0||amt>state.balance){toast('Неверная сумма');return}
                     sendWS({action:'join_room',user_id:user.id,room_id:r.room_id,bet_amount:amt,avatar:'🎲'});
                     state.balance-=amt;updateUI();
@@ -412,7 +409,7 @@
         function showMyRoom(data){
             $('#myRoomPanel').classList.remove('hidden');
             $('#myRoomId').textContent=data.room_id;
-            $('#myRoomBank').textContent=`${(data.bank||0).toFixed(2)}$`;
+            $('#myRoomBank').textContent=(data.bank||0).toFixed(2)+'$';
             $('#myRoomTimer').textContent=data.timer||30;
             renderPlayers(data.players||[]);
             if(state.isCreator&&data.players&&data.players.length>=2)$('#startGameBtn').classList.remove('hidden');
@@ -421,29 +418,29 @@
         }
 
         function hideMyRoom(){$('#myRoomPanel').classList.add('hidden');$('#startGameBtn').classList.add('hidden');state.currentRoom=null;state.isCreator=false;sendWS({action:'get_rooms'})}
-        function updateRoom(data){if(data.players)renderPlayers(data.players);if(data.bank!==undefined)$('#myRoomBank').textContent=`${data.bank.toFixed(2)}$`;if(state.isCreator&&data.players&&data.players.length>=2)$('#startGameBtn').classList.remove('hidden')}
-        function renderPlayers(players){$('#myRoomPlayers').innerHTML='';players.forEach(p=>{const b=document.createElement('span');b.className='player-badge';b.style.backgroundColor=p.color||'#555';b.innerHTML=`${p.avatar||'🎲'} ${(p.nickname||'Player').substring(0,15)}`;$('#myRoomPlayers').appendChild(b)})}
+        function updateRoom(data){if(data.players)renderPlayers(data.players);if(data.bank!==undefined)$('#myRoomBank').textContent=data.bank.toFixed(2)+'$';if(state.isCreator&&data.players&&data.players.length>=2)$('#startGameBtn').classList.remove('hidden')}
+        function renderPlayers(players){$('#myRoomPlayers').innerHTML='';players.forEach(function(p){var b=document.createElement('span');b.className='player-badge';b.style.backgroundColor=p.color||'#555';b.innerHTML=(p.avatar||'🎲')+' '+(p.nickname||'Player').substring(0,15);$('#myRoomPlayers').appendChild(b)})}
 
         function showMPResult(data){
-            const isWin=data.winner_id===user.id;
-            const b=$('#centerBanner');b.classList.remove('win','lose','show','hide');void b.offsetWidth;
-            if(isWin){b.innerHTML=`🏆<br>+${(data.win_amount||0).toFixed(2)}$`;b.classList.add('win');spawnConfetti();playWinSound()}
-            else{b.innerHTML=`😢<br>${data.winner_nickname||'Игрок'}`;b.classList.add('lose');playLoseSound()}
-            b.classList.add('show');setTimeout(()=>{b.classList.add('hide');b.classList.remove('show')},3000);
+            var isWin=data.winner_id===user.id;
+            var b=$('#centerBanner');b.classList.remove('win','lose','show','hide');void b.offsetWidth;
+            if(isWin){b.innerHTML='🏆<br>+'+(data.win_amount||0).toFixed(2)+'$';b.classList.add('win');spawnConfetti();playWinSound()}
+            else{b.innerHTML='😢<br>'+(data.winner_nickname||'Игрок');b.classList.add('lose');playLoseSound()}
+            b.classList.add('show');setTimeout(function(){b.classList.add('hide');b.classList.remove('show')},3000);
             loadUser();setTimeout(hideMyRoom,4000);
         }
 
-        $('#createRoomBtn').addEventListener('click',()=>{const a=parseFloat($('#mpBetAmount').value)||0;if(a<=0||a>state.balance){toast('Неверная сумма');return}sendWS({action:'create_room',user_id:user.id,bet_amount:a,avatar:'🎯'});state.balance-=a;updateUI()});
-        $('#leaveRoomBtn').addEventListener('click',()=>{if(!state.currentRoom)return;sendWS({action:'leave_room',user_id:user.id,room_id:state.currentRoom});hideMyRoom();loadUser()});
-        $('#startGameBtn').addEventListener('click',()=>{if(!state.currentRoom||!state.isCreator)return;sendWS({action:'start_game',user_id:user.id,room_id:state.currentRoom})});
-        $('#refreshRoomsBtn').addEventListener('click',()=>sendWS({action:'get_rooms'}));
+        $('#createRoomBtn').addEventListener('click',function(){var a=parseFloat($('#mpBetAmount').value)||0;if(a<=0||a>state.balance){toast('Неверная сумма');return}sendWS({action:'create_room',user_id:user.id,bet_amount:a,avatar:'🎯'});state.balance-=a;updateUI()});
+        $('#leaveRoomBtn').addEventListener('click',function(){if(!state.currentRoom)return;sendWS({action:'leave_room',user_id:user.id,room_id:state.currentRoom});hideMyRoom();loadUser()});
+        $('#startGameBtn').addEventListener('click',function(){if(!state.currentRoom||!state.isCreator)return;sendWS({action:'start_game',user_id:user.id,room_id:state.currentRoom})});
+        $('#refreshRoomsBtn').addEventListener('click',function(){sendWS({action:'get_rooms'})});
 
         // Init
         loadUser();
-        const urlParams=new URLSearchParams(window.location.search);
-        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(x=>x.classList.remove('active'));const m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(x=>x.classList.remove('active'));const t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(()=>sendWS({action:'get_rooms'}),500)}}
-        setInterval(()=>{if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
-        window.addEventListener('beforeunload',()=>{if(state.currentRoom)try{sendWS({action:'leave_room',user_id:user.id,room_id:state.currentRoom})}catch(e){};if(ws)ws.close()});
+        var urlParams=new URLSearchParams(window.location.search);
+        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){sendWS({action:'get_rooms'})},500)}}
+        setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
+        window.addEventListener('beforeunload',function(){if(state.currentRoom)try{sendWS({action:'leave_room',user_id:user.id,room_id:state.currentRoom})}catch(e){};if(ws)ws.close()});
     </script>
 </body>
 </html>
