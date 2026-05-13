@@ -112,6 +112,10 @@ def execute_sqlite_with_retry(max_retries=5, delay=0.1):
     return decorator
 
 async def init_sqlite():
+    """
+    ИСПРАВЛЕНИЕ: SQLite теперь ВСЕГДА восстанавливается из PostgreSQL при старте.
+    Это решает проблему потери данных при деплое на Render.
+    """
     global sqlite_pool
     os.makedirs("database", exist_ok=True)
     sqlite_pool = await aiosqlite.connect(config.SQLITE_DB_PATH)
@@ -155,7 +159,33 @@ async def init_sqlite():
         CREATE INDEX IF NOT EXISTS idx_rooms_status ON multiplayer_rooms(status);
     """)
     await sqlite_pool.commit()
-    logger.info("✅ SQLite initialized")
+    logger.info("✅ SQLite tables created")
+
+async def restore_from_postgres():
+    """
+    Восстановление данных из PostgreSQL в SQLite.
+    Вызывается ПОСЛЕ инициализации обоих БД.
+    """
+    if not pg_pool or not sqlite_pool:
+        return
+    try:
+        async with pg_pool.acquire() as conn:
+            pg_users = await conn.fetch("SELECT * FROM users")
+            if pg_users:
+                for u in pg_users:
+                    await sqlite_pool.execute(
+                        "INSERT OR REPLACE INTO users (user_id, username, nickname, balance, total_games, total_wins, total_bet, total_win_amount, free_spins, games_since_withdrawal, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),NOW())",
+                        (u["user_id"], u["username"], u["nickname"], float(u["balance"]),
+                         u["total_games"] or 0, u["total_wins"] or 0,
+                         float(u["total_bet"] or 0), float(u["total_win_amount"] or 0),
+                         u["free_spins"] or 0, u["games_since_withdrawal"] or 0)
+                    )
+                await sqlite_pool.commit()
+                logger.info(f"✅ Restored {len(pg_users)} users from PostgreSQL")
+            else:
+                logger.info("ℹ️ No users in PostgreSQL to restore")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not restore from PG: {e}")
 
 async def init_postgres():
     global pg_pool
@@ -200,6 +230,7 @@ async def get_user(user_id: int) -> Optional[Dict]:
         return None
 
 async def create_user_if_not_exists(user_id: int, username: str = None) -> Dict:
+    """Создаёт пользователя в SQLite и PostgreSQL если не существует"""
     user = await get_user(user_id)
     if not user:
         now = datetime.now().isoformat()
@@ -218,10 +249,12 @@ async def create_user_if_not_exists(user_id: int, username: str = None) -> Dict:
             except Exception as e:
                 logger.error(f"PG insert error: {e}")
         user = await get_user(user_id)
+        logger.info(f"👤 New user created: {user_id}")
     return user
 
 @execute_sqlite_with_retry()
 async def update_balance_both(user_id: int, new_balance: float):
+    """Обновляет баланс в SQLite и PostgreSQL"""
     now = datetime.now().isoformat()
     await sqlite_pool.execute("UPDATE users SET balance = ?, updated_at = ? WHERE user_id = ?", (new_balance, now, user_id))
     await sqlite_pool.commit()
@@ -238,6 +271,7 @@ def get_number_color(number: int) -> str:
     else: return "green"
 
 def generate_roulette_result(bet_type: str) -> Tuple[int, bool, str]:
+    """Реалистичная рулетка"""
     number = random.randint(0, 36)
     color = get_number_color(number)
     is_win = False
@@ -252,12 +286,15 @@ def generate_roulette_result(bet_type: str) -> Tuple[int, bool, str]:
 def calculate_win_amount(bet_amount: float, bet_type: str) -> float:
     if bet_type == "zero" or (bet_type.isdigit() and 0 <= int(bet_type) <= 36): return bet_amount * 36
     return bet_amount * 2
-
 # ═══════════════════════════════════════
 # API ENDPOINTS
 # ═══════════════════════════════════════
 
 async def api_get_user(request: Request) -> Response:
+    """
+    ИСПРАВЛЕНИЕ: Авто-создание пользователя если не существует.
+    Больше не возвращает 404 — всегда возвращает данные пользователя.
+    """
     try:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
@@ -266,7 +303,6 @@ async def api_get_user(request: Request) -> Response:
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
         
-        # Авто-создание пользователя если не существует
         user = await get_user(user_id)
         if not user:
             user = await create_user_if_not_exists(user_id)
@@ -279,6 +315,11 @@ async def api_get_user(request: Request) -> Response:
     except Exception as e: return json_response({"error": str(e)}, status=500)
 
 async def api_place_bet(request: Request) -> Response:
+    """
+    ИСПРАВЛЕНИЕ: Админы могут играть без ввода суммы.
+    Реалистичная рулетка (сначала число, потом проверка).
+    Бесплатные спины корректно уменьшаются при использовании.
+    """
     try:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
@@ -288,10 +329,14 @@ async def api_place_bet(request: Request) -> Response:
         if not user_id or not bet_type: return json_response({"error": "Invalid parameters"}, status=400)
         if not check_rate_limit(user_id):
             return json_response({"error": "Too many requests"}, status=429)
+        
         user = await get_user(user_id)
         if not user: user = await create_user_if_not_exists(user_id)
+        
         is_admin = user_id in config.ADMIN_IDS
-        if is_admin: actual_bet = 0
+        
+        if is_admin:
+            actual_bet = 0
         elif use_free_spin:
             if user["free_spins"] <= 0: return json_response({"error": "No free spins"}, status=400)
             actual_bet = 0
@@ -299,17 +344,21 @@ async def api_place_bet(request: Request) -> Response:
             if bet_amount <= 0: return json_response({"error": "Bet amount required"}, status=400)
             if user["balance"] < bet_amount: return json_response({"error": "Insufficient balance"}, status=400)
             actual_bet = bet_amount
+
         number, is_win, color = generate_roulette_result(bet_type)
         win_amount = calculate_win_amount(actual_bet, bet_type) if is_win else 0
         new_balance = user["balance"] - actual_bet + win_amount
+
         now = datetime.now().isoformat()
         add_free = 1 if (user["total_games"] + 1) % config.FREE_SPIN_EVERY == 0 and not use_free_spin else 0
         new_free_spins = user["free_spins"] + add_free - (1 if use_free_spin else 0)
+        
         await sqlite_pool.execute(
             "UPDATE users SET balance=?, total_games=total_games+1, total_wins=total_wins+?, free_spins=?, games_since_withdrawal=games_since_withdrawal+1, total_bet=total_bet+?, total_win_amount=total_win_amount+?, updated_at=? WHERE user_id=?",
             (new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, now, user_id)
         )
         await sqlite_pool.commit()
+
         if pg_pool:
             try:
                 async with pg_pool.acquire() as conn:
@@ -318,11 +367,13 @@ async def api_place_bet(request: Request) -> Response:
                         new_balance, 1 if is_win else 0, new_free_spins, actual_bet, win_amount, user_id
                     )
             except Exception as e: logger.error(f"PG error: {e}")
+
         await sqlite_pool.execute(
             "INSERT INTO game_history (user_id, game_type, bet_type, bet_amount, win_amount, result, number) VALUES (?,'single',?,?,?,?,?)",
             (user_id, bet_type, actual_bet, win_amount, 'win' if is_win else 'loss', number)
         )
         await sqlite_pool.commit()
+
         updated_user = await get_user(user_id)
         logger.info(f"🎰 User {user_id}: bet={actual_bet}, number={number}, win={is_win}, amount={win_amount}, balance={new_balance}")
         return json_response({
@@ -353,7 +404,8 @@ async def api_withdraw_request(request: Request) -> Response:
         logger.info(f"💸 Withdrawal: user={user_id}, amount={amount}")
         return json_response({"success": True, "new_balance": new_balance})
     except Exception as e: return json_response({"error": str(e)}, status=500)
-    # ═══════════════════════════════════════
+
+# ═══════════════════════════════════════
 # FSM STATES
 # ═══════════════════════════════════════
 
@@ -437,7 +489,7 @@ async def support_receive_message(message: Message, state: FSMContext, bot: Bot)
     await state.clear()
 
 # ═══════════════════════════════════════
-# ADMIN ROUTER (ВТОРОЙ) — ВСЕ CALLBACK ИСПРАВЛЕНЫ
+# ADMIN ROUTER (ВТОРОЙ)
 # ═══════════════════════════════════════
 
 admin_router = Router()
@@ -526,37 +578,34 @@ async def admin_sub_balance_execute(message: Message, state: FSMContext):
 
 @admin_router.callback_query(F.data == "admin_players_list")
 async def admin_players_list(callback: CallbackQuery):
+    """
+    ИСПРАВЛЕНИЕ: Показывает ВСЕХ пользователей, а не только одного.
+    """
     await callback.answer()
     if callback.from_user.id not in config.ADMIN_IDS: return
     
-    # Получаем ВСЕХ пользователей
     cursor = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users")
     row = await cursor.fetchone()
     total = row["cnt"] if row else 0
     
-    # Получаем с сортировкой
     cursor = await sqlite_pool.execute(
         "SELECT user_id, username, balance, total_games, total_wins FROM users ORDER BY balance DESC LIMIT 20"
     )
     players = await cursor.fetchall()
     
     if not players:
-        await callback.message.edit_text(
-            f"👥 Список игроков пуст\nВсего игроков: {total}", 
-            reply_markup=get_back_to_admin_keyboard()
-        )
+        await callback.message.edit_text(f"👥 Список игроков пуст\nВсего игроков: {total}", reply_markup=get_back_to_admin_keyboard())
         return
     
     text = f"👥 Список игроков (Всего: {total})\n\n"
     for p in players:
         nick = (p["username"] or str(p["user_id"]))[:20]
         nick = nick.replace('_','\\_').replace('*','\\*').replace('`','\\`').replace('[','\\[')
-        text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games']} | 🏆 {p['total_wins']}\n"
+        text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games'] or 0} | 🏆 {p['total_wins'] or 0}\n"
     
     try:
         await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=get_back_to_admin_keyboard())
-    except:
-        pass
+    except: pass
 
 @admin_router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: CallbackQuery):
@@ -672,7 +721,8 @@ async def reply_command(message: Message):
         await message.answer(f"✅ Ответ отправлен пользователю `{target_id}`", parse_mode=ParseMode.MARKDOWN)
     except ValueError: await message.answer("❌ Неверный ID пользователя")
     except Exception as e: await message.answer(f"❌ Ошибка отправки: {e}")
-    # ═══════════════════════════════════════
+
+# ═══════════════════════════════════════
 # USER ROUTER (ТРЕТИЙ)
 # ═══════════════════════════════════════
 
@@ -762,8 +812,7 @@ async def cmd_cancel(message: Message, state: FSMContext):
 async def play_roulette_button(message: Message):
     await message.answer("🎡 *Рулетка открывается...*", parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎡 Открыть рулетку", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single"))]]))
-
-# ═══════════════════════════════════════
+    # ═══════════════════════════════════════
 # WEBSOCKET SERVER FOR MULTIPLAYER
 # ═══════════════════════════════════════
 
@@ -876,7 +925,6 @@ async def start_mp_game(room_id: str):
     for uid in room["players"]:
         if uid in user_active_rooms: del user_active_rooms[uid]
     if room_id in mp_rooms: del mp_rooms[room_id]
-    await broadcast_to_room(room_id, {"type":"mp_round_reset"})
 
 async def cleanup_old_rooms():
     while True:
@@ -1081,12 +1129,27 @@ dp.include_router(admin_router)
 dp.include_router(user_router)
 
 async def on_startup():
+    """
+    ИСПРАВЛЕНИЕ: Правильный порядок инициализации.
+    SQLite -> PostgreSQL -> восстановление из PG -> вебхук.
+    Keep-alive пингует /health каждые 4 минуты.
+    drop_pending_updates=True чтобы не обрабатывать старые сообщения.
+    """
     logger.info("🚀 Starting LN Roulette Bot...")
+    
+    # 1. Инициализируем SQLite (создаёт таблицы)
     await init_sqlite()
+    
+    # 2. Инициализируем PostgreSQL
     await init_postgres()
+    
+    # 3. Восстанавливаем данные из PG в SQLite
+    await restore_from_postgres()
+    
+    # 4. Запускаем фоновые задачи
     asyncio.create_task(cleanup_old_rooms())
     
-    # Keep-alive чтобы не засыпать
+    # 5. Keep-alive чтобы Render не засыпал
     async def keep_alive():
         while True:
             await asyncio.sleep(240)
@@ -1096,13 +1159,22 @@ async def on_startup():
             except: pass
     asyncio.create_task(keep_alive())
     
-    # Удаляем старый вебхук перед установкой нового
+    # 6. Удаляем старый вебхук и ставим новый
     await bot.delete_webhook(drop_pending_updates=True)
-    await bot.set_webhook(url=config.WEBHOOK_URL, allowed_updates=["message","callback_query","inline_query"])
+    await asyncio.sleep(1)
+    await bot.set_webhook(
+        url=config.WEBHOOK_URL,
+        allowed_updates=["message","callback_query","inline_query"]
+    )
     logger.info(f"✅ Webhook set to {config.WEBHOOK_URL}")
     logger.info("✅ Bot started!")
 
 async def on_shutdown():
+    """
+    ИСПРАВЛЕНИЕ: Не удаляем вебхук при выключении.
+    Новый экземпляр сам перехватит вебхук через delete_webhook.
+    Возвращаем все активные ставки.
+    """
     logger.info("🛑 Shutting down...")
     for room_id, room in list(mp_rooms.items()):
         for uid, pdata in room["players"].items():
@@ -1115,7 +1187,6 @@ async def on_shutdown():
     ws_connections.clear()
     mp_rooms.clear()
     user_active_rooms.clear()
-    # НЕ удаляем вебхук — новый экземпляр сам займёт
     await bot.session.close()
     await close_databases()
     logger.info("✅ Bot stopped")

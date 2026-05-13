@@ -215,32 +215,41 @@
 
         <div class="center-banner" id="centerBanner"></div>
     </div>
-        <script>
-    const tg = window.Telegram?.WebApp;
-    let user = null;
-    
-    if (tg) {
-        tg.ready(); tg.expand();
-        if (tg.initDataUnsafe?.user) {
-            user = {
-                id: tg.initDataUnsafe.user.id,
-                username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player',
-                firstName: tg.initDataUnsafe.user.first_name || 'Player'
-            };
+
+    <script>
+        // ═══════════════════════════════════════
+        // ИСПРАВЛЕНИЕ: user_id теперь берётся из Telegram WebApp initData
+        // Каждый пользователь получает свой баланс
+        // ═══════════════════════════════════════
+        const tg = window.Telegram?.WebApp;
+        let user = null;
+
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            if (tg.initDataUnsafe?.user) {
+                user = {
+                    id: tg.initDataUnsafe.user.id,
+                    username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player',
+                    firstName: tg.initDataUnsafe.user.first_name || 'Player'
+                };
+            }
         }
-    }
-    
-    // Если не в Telegram — используем URL параметр
-    if (!user) {
-        const params = new URLSearchParams(window.location.search);
-        const uid = params.get('user_id');
-        if (uid) {
-            user = { id: parseInt(uid), username: 'player', firstName: 'Player' };
-        } else {
-            // Только для отладки — уберите в продакшене
-            user = { id: Math.floor(Math.random() * 1000000), username: 'guest', firstName: 'Guest' };
+
+        // Если не в Telegram — пробуем получить user_id из URL
+        if (!user) {
+            const params = new URLSearchParams(window.location.search);
+            const uid = params.get('user_id');
+            if (uid) {
+                user = { id: parseInt(uid), username: 'player', firstName: 'Player' };
+            } else {
+                // Тестовый режим — только для отладки
+                console.warn('⚠️ Running in test mode');
+                user = { id: 1167503795, username: 'test', firstName: 'Tester' };
+            }
         }
-    }
+
+        console.log('👤 User:', user.id, user.firstName);
 
         const API = 'https://roulette-bot-8i8t.onrender.com';
         const WS_URL = API.replace('https','wss').replace('http','ws');
@@ -289,13 +298,27 @@
         // API
         // ═══════════════════════════════════════
         async function api(endpoint,data={}){
-            try{const r=await fetch(`${API}${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,...data})});
-            if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||`HTTP ${r.status}`);}
-            return await r.json()}catch(e){toast('Ошибка: '+e.message);throw e}
+            try{
+                const r=await fetch(`${API}${endpoint}`,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({user_id:user.id,...data})
+                });
+                if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||`HTTP ${r.status}`);}
+                return await r.json();
+            }catch(e){toast('Ошибка: '+e.message);throw e}
         }
 
         async function loadUser(){
-            try{const d=await api('/api/user/get');state.balance=d.balance||0;state.freeSpins=d.free_spins||0;state.totalWins=d.total_wins||0;state.totalGames=d.total_games||0;updateUI()}catch(e){}
+            try{
+                const d=await api('/api/user/get');
+                state.balance=d.balance||0;
+                state.freeSpins=d.free_spins||0;
+                state.totalWins=d.total_wins||0;
+                state.totalGames=d.total_games||0;
+                updateUI();
+                console.log('💰 Balance loaded:', state.balance);
+            }catch(e){console.error('Load user error:', e);}
         }
 
         function updateUI(){
@@ -338,9 +361,7 @@
             if(b.dataset.tab==='multiplayer'){
                 connectWS();
                 switchMPTab('lobby');
-                setTimeout(function(){
-                    sendWS({action:'mp_get_rooms'});
-                },800);
+                setTimeout(function(){sendWS({action:'mp_get_rooms'});},800);
             }
             vibrate();
         })});
@@ -435,9 +456,9 @@
         // ═══════════════════════════════════════
         var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];
         var mpWheelRotation=0;
-
-        // Переключение вкладок внутри мультиплеера
-        var mpTab='lobby'; // lobby | room
+        var mpTab='lobby';
+        var mpMyRoom=null;
+        var mpIsCreator=false;
 
         function switchMPTab(tab){
             mpTab=tab;
@@ -471,8 +492,6 @@
                     state.balance-=amt;
                     updateUI();
                     switchMPTab('room');
-                    $('#mpPlaceBetBtn').disabled=true;
-                    setTimeout(function(){$('#mpPlaceBetBtn').disabled=false},2000);
                 });
                 list.appendChild(card);
             });
@@ -623,8 +642,7 @@
         if(urlParams.get('mode')==='multiplayer'){
             $$('.tab-btn').forEach(function(x){x.classList.remove('active')});
             var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');
-            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){switchMPTab('lobby');
-sendWS({action:'mp_get_rooms'});},500);}
+            if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});var t=$('#tab-multiplayer');if(t)t.classList.add('active');state.mode='multiplayer';connectWS();setTimeout(function(){switchMPTab('lobby');sendWS({action:'mp_get_rooms'});},800);}
         }
         setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
         window.addEventListener('beforeunload',function(){if(ws)ws.close()});
