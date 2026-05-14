@@ -1027,11 +1027,23 @@ dp.include_router(user_router)
 
 
 async def on_startup(app):
-    logger.info("🚀 Starting v8.0...")
+    logger.info("🚀 Starting v8.3...")
+    
+    # 1. Инициализируем БД
     await init_sqlite()
     await init_postgres()
     await restore_from_pg()
-
+    
+    # 2. Запускаем MP-сервер (БД уже готова)
+    import mp_server
+    mp_server.set_db(sqlite_pool)
+    runner = web.AppRunner(mp_server.create_app())
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 10001)
+    await site.start()
+    logger.info("✅ MP server started on internal port 10001")
+    
+    # 3. Keep-alive
     async def keep_alive():
         while True:
             await asyncio.sleep(240)
@@ -1040,14 +1052,13 @@ async def on_startup(app):
                     await session.get(f"{config.API_URL}/health", timeout=5)
             except:
                 pass
-
     asyncio.create_task(keep_alive())
-
+    
+    # 4. Webhook
     await bot.delete_webhook(drop_pending_updates=True)
     await asyncio.sleep(3)
     await bot.set_webhook(url=config.WEBHOOK_URL, allowed_updates=["message", "callback_query"])
     logger.info(f"✅ Ready on port {config.WEBHOOK_PORT}")
-
 
 async def on_shutdown(app):
     logger.info("🛑 Shutting down...")
@@ -1073,7 +1084,7 @@ def create_app() -> web.Application:
     webhook_handler.register(app, path=config.WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
 
-    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "8.1"}))
+    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "8.3"}))
     app.router.add_post("/api/get_balance", api_get_balance)
     app.router.add_post("/api/game_result", api_game_result)
     app.router.add_post("/api/create_invoice", api_create_invoice)
@@ -1081,17 +1092,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/crypto_callback", api_crypto_callback)
     app.router.add_post("/api/withdraw", api_withdraw)
 
-    # --- MP Server & Proxy ---
-    async def start_mp_server(app):
-        """Запуск MP-сервера внутри основного процесса"""
-        import mp_server
-        mp_server.set_db(sqlite_pool)  # Передаём БД
-        runner = web.AppRunner(mp_server.create_app())
-        await runner.setup()
-        site = web.TCPSite(runner, 'localhost', 10001)
-        await site.start()
-        logger.info("✅ MP server started on internal port 10001")
-
+    # MP WebSocket proxy
     async def proxy_mp_ws(request):
         """Прокси WebSocket запросов на внутренний MP-сервер"""
         ws_client = web.WebSocketResponse()
@@ -1123,12 +1124,11 @@ def create_app() -> web.Application:
         return ws_client
 
     app.router.add_get("/mp-ws", proxy_mp_ws)
-    app.on_startup.append(start_mp_server)
+
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
     return app
-
 
 if __name__ == "__main__":
     app = create_app()
