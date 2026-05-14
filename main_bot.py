@@ -135,10 +135,31 @@ async def init_postgres():
         pg_pool = await asyncpg.create_pool(dsn=config.POSTGRES_DSN, min_size=1, max_size=5, command_timeout=30)
         async with pg_pool.acquire() as conn:
             await conn.execute("""
-                CREATE TABLE IF NOT EXISTS users (user_id BIGINT PRIMARY KEY, username TEXT, balance DECIMAL(20,2) DEFAULT 0, total_games INTEGER DEFAULT 0, wins INTEGER DEFAULT 0, free_spins INTEGER DEFAULT 0, games_since_withdrawal INTEGER DEFAULT 0, created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT, updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT);
-                CREATE TABLE IF NOT EXISTS support_messages (id SERIAL PRIMARY KEY, user_id BIGINT, message TEXT, created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT);
-                CREATE TABLE IF NOT EXISTS withdraw_requests (id SERIAL PRIMARY KEY, user_id BIGINT, amount REAL, wallet TEXT, status TEXT DEFAULT 'pending', created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT);
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id BIGINT PRIMARY KEY, username TEXT, balance DECIMAL(20,2) DEFAULT 0,
+                    total_games INTEGER DEFAULT 0, wins INTEGER DEFAULT 0,
+                    free_spins INTEGER DEFAULT 0, games_since_withdrawal INTEGER DEFAULT 0,
+                    created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+                    updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+                );
+                CREATE TABLE IF NOT EXISTS support_messages (
+                    id SERIAL PRIMARY KEY, user_id BIGINT, message TEXT,
+                    created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+                );
+                CREATE TABLE IF NOT EXISTS withdraw_requests (
+                    id SERIAL PRIMARY KEY, user_id BIGINT, amount REAL,
+                    wallet TEXT, status TEXT DEFAULT 'pending',
+                    created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+                );
             """)
+            # Миграция: добавляем колонки если их нет
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_games INTEGER DEFAULT 0")
+                await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wins INTEGER DEFAULT 0")
+                await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS free_spins INTEGER DEFAULT 0")
+                await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS games_since_withdrawal INTEGER DEFAULT 0")
+            except Exception as e:
+                logger.warning(f"Migration warning: {e}")
         logger.info("✅ PostgreSQL ready")
     except Exception as e: logger.warning(f"⚠️ PG unavailable: {e}")
 
