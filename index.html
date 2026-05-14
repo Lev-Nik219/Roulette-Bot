@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a1a0a">
-    <title>🎡 ROULETTE v7.0</title>
+    <title>🎡 ROULETTE v8.0</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -736,10 +736,6 @@
                 width: 240px;
                 height: 240px;
             }
-            .mp-canvas-container canvas {
-                width: 240px;
-                height: 240px;
-            }
         }
     </style>
 </head>
@@ -949,7 +945,6 @@
             }
         }
 
-        // Если не в Telegram — проверяем URL параметры
         if (!user) {
             const p = new URLSearchParams(window.location.search);
             const uid = p.get('user_id');
@@ -960,7 +955,6 @@
                     firstName: 'Player ' + uid
                 };
             } else {
-                // Гостевой ID
                 const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 user = {
                     id: guestId,
@@ -973,8 +967,8 @@
             }
         }
 
-        const API = 'https://roulette-bot-8i8t.onrender.com';
-        const WS_URL = API.replace('https', 'wss').replace('http', 'ws');
+        const API_URL = 'https://roulette-bot-8i8t.onrender.com';
+        const MP_WS_URL = 'wss://roulette-bot-8i8t.onrender.com/mp-ws';
 
         const $ = (s) => document.querySelector(s);
         const $$ = (s) => document.querySelectorAll(s);
@@ -992,18 +986,13 @@
             gamesSinceWithdrawal: 0
         };
 
-        // WebSocket
-        let ws = null;
-        let wsReconnectAttempts = 0;
-        const maxWsReconnectDelay = 30000;
+        let mpWs = null;
+        let mpWsReconnectAttempts = 0;
+        const maxMpWsReconnectDelay = 30000;
 
-        // Audio
         let audioCtx = null;
-
-        // Single wheel
         let wheelRotation = 0;
 
-        // Multiplayer
         let mpMyRoom = null;
         let mpState = {
             players: [],
@@ -1019,9 +1008,11 @@
         let mpIsSpinning = false;
         let mpSpinAnimationId = null;
 
-        // Payment
         let pendingPaymentId = null;
         let paymentCheckInterval = null;
+        let confettiTimeout = null;
+
+        const imageCache = {};
 
         // ═══════════════════════════════════════
         // UTILS
@@ -1160,6 +1151,8 @@
 
         function spawnConfetti() {
             try {
+                if (confettiTimeout) clearTimeout(confettiTimeout);
+                document.querySelectorAll('.confetti').forEach(el => el.remove());
                 const colors = ['#ffd700', '#ff6b6b', '#4CAF50', '#f7971e'];
                 for (let i = 0; i < 40; i++) {
                     const el = document.createElement('div');
@@ -1172,8 +1165,11 @@
                     el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
                     el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
                     document.body.appendChild(el);
-                    setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
                 }
+                confettiTimeout = setTimeout(() => {
+                    document.querySelectorAll('.confetti').forEach(el => el.remove());
+                    confettiTimeout = null;
+                }, 3000);
             } catch (e) {}
         }
 
@@ -1237,11 +1233,11 @@
         animateParticles();
 
         // ═══════════════════════════════════════
-        // API
+        // API (SINGLE ROULETTE)
         // ═══════════════════════════════════════
         async function api(endpoint, data = {}) {
             try {
-                const r = await fetch(`${API}${endpoint}`, {
+                const r = await fetch(`${API_URL}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: user.id, ...data })
@@ -1347,9 +1343,9 @@
                 if (tab) tab.classList.add('active');
 
                 if (this.dataset.tab === 'multiplayer') {
-                    connectWS();
+                    connectMPWS();
                     switchMPTab('lobby');
-                    setTimeout(() => { sendWS({ action: 'mp_get_rooms' }); }, 1000);
+                    setTimeout(() => { sendMP({ action: 'mp_get_rooms' }); }, 1000);
                 }
                 if (this.dataset.tab === 'profile') {
                     loadUser();
@@ -1359,7 +1355,7 @@
         });
 
         // ═══════════════════════════════════════
-        // BET SELECTION
+        // BET SELECTION (SINGLE)
         // ═══════════════════════════════════════
         $$('#betGrid .bet-option').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -1529,56 +1525,56 @@
         }
 
         // ═══════════════════════════════════════
-        // WEBSOCKET
+        // MULTIPLAYER WEBSOCKET
         // ═══════════════════════════════════════
-        function connectWS() {
-            if (ws && ws.readyState === WebSocket.OPEN) return;
+        function connectMPWS() {
+            if (mpWs && mpWs.readyState === WebSocket.OPEN) return;
 
             try {
-                ws = new WebSocket(WS_URL + '/ws');
+                mpWs = new WebSocket(MP_WS_URL);
 
-                ws.onopen = () => {
-                    wsReconnectAttempts = 0;
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ action: 'connect', user_id: user.id }));
+                mpWs.onopen = () => {
+                    mpWsReconnectAttempts = 0;
+                    if (mpWs && mpWs.readyState === WebSocket.OPEN) {
+                        sendMP({ action: 'connect', user_id: user.id });
                     }
                 };
 
-                ws.onmessage = (e) => {
+                mpWs.onmessage = (e) => {
                     try {
-                        handleWS(JSON.parse(e.data));
+                        handleMPMessage(JSON.parse(e.data));
                     } catch (ex) {
-                        console.error('WS parse error:', ex);
+                        console.error('MP WS parse error:', ex);
                     }
                 };
 
-                ws.onclose = (e) => {
-                    ws = null;
-                    wsReconnectAttempts++;
-                    const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts), maxWsReconnectDelay);
-                    setTimeout(connectWS, delay);
+                mpWs.onclose = (e) => {
+                    mpWs = null;
+                    mpWsReconnectAttempts++;
+                    const delay = Math.min(1000 * Math.pow(2, mpWsReconnectAttempts), maxMpWsReconnectDelay);
+                    setTimeout(connectMPWS, delay);
                 };
 
-                ws.onerror = (e) => {
-                    console.error('WS error:', e);
+                mpWs.onerror = (e) => {
+                    console.error('MP WS error:', e);
                 };
             } catch (e) {
-                wsReconnectAttempts++;
-                const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts), maxWsReconnectDelay);
-                setTimeout(connectWS, delay);
+                mpWsReconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, mpWsReconnectAttempts), maxMpWsReconnectDelay);
+                setTimeout(connectMPWS, delay);
             }
         }
 
-        function sendWS(data) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(data));
+        function sendMP(data) {
+            if (mpWs && mpWs.readyState === WebSocket.OPEN) {
+                mpWs.send(JSON.stringify(data));
             } else {
                 toast('Нет соединения с сервером');
-                connectWS();
+                connectMPWS();
             }
         }
 
-        function handleWS(data) {
+        function handleMPMessage(data) {
             switch (data.type) {
                 case 'connected':
                     state.balance = data.balance || state.balance;
@@ -1594,14 +1590,20 @@
                     const timer = $('#mpRoomTimer');
                     if (timer) timer.textContent = data.time;
                     break;
+                case 'mp_timer_extended':
+                    toast('⏱ Таймер продлён до ' + data.time + 'с');
+                    break;
                 case 'mp_spin_start':
                     startMPSpin(data);
                     break;
                 case 'mp_result':
                     showMPResult(data);
                     break;
+                case 'mp_new_round':
+                    toast('🔄 ' + (data.message || 'Новый раунд!'));
+                    break;
                 case 'mp_round_cancelled':
-                    toast('❌ Раунд отменён: ' + (data.reason || ''));
+                    toast('❌ ' + (data.reason || 'Раунд отменён'));
                     resetMPRoom();
                     break;
                 case 'mp_left_room':
@@ -1622,6 +1624,10 @@
         function initMPWheel() {
             mpWheelCanvas = $('#mpWheelCanvas');
             if (!mpWheelCanvas) return;
+            const container = mpWheelCanvas.parentElement;
+            const size = Math.min(container.offsetWidth, container.offsetHeight) || 300;
+            mpWheelCanvas.width = size;
+            mpWheelCanvas.height = size;
             mpWheelCtx = mpWheelCanvas.getContext('2d');
         }
 
@@ -1636,7 +1642,7 @@
 
             ctx.clearRect(0, 0, w, h);
 
-            // Background
+            // Background circle
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fillStyle = '#1a1a1a';
@@ -1651,6 +1657,8 @@
             if (sectors.length === 0) return;
 
             let startAngle = -Math.PI / 2;
+            const avatarRadius = r * 0.55;
+            const avatarSize = Math.max(14, r * 0.12);
 
             sectors.forEach((sector) => {
                 const angle = (sector.bet / (bank || 1)) * Math.PI * 2;
@@ -1669,48 +1677,56 @@
 
                 // Draw avatar
                 const midAngle = startAngle + angle / 2;
-                const avatarR = r * 0.55;
-                const ax = cx + Math.cos(midAngle) * avatarR;
-                const ay = cy + Math.sin(midAngle) * avatarR;
+                const ax = cx + Math.cos(midAngle) * avatarRadius;
+                const ay = cy + Math.sin(midAngle) * avatarRadius;
 
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = sector.avatar;
-                img.onload = () => {
+                const cacheKey = sector.avatar;
+                if (imageCache[cacheKey] && imageCache[cacheKey].complete) {
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(ax, ay, 18, 0, Math.PI * 2);
+                    ctx.arc(ax, ay, avatarSize, 0, Math.PI * 2);
                     ctx.clip();
-                    ctx.drawImage(img, ax - 18, ay - 18, 36, 36);
+                    ctx.drawImage(imageCache[cacheKey], ax - avatarSize, ay - avatarSize, avatarSize * 2, avatarSize * 2);
                     ctx.restore();
-                    ctx.beginPath();
-                    ctx.arc(ax, ay, 18, 0, Math.PI * 2);
-                    ctx.strokeStyle = sector.color;
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                };
-                img.onerror = () => {
-                    // Fallback: colored circle with initial
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(ax, ay, 18, 0, Math.PI * 2);
-                    ctx.fillStyle = sector.color;
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText((sector.nickname || '?').substring(0, 2).toUpperCase(), ax, ay);
-                    ctx.restore();
-                };
+
+                    // Border for TOP-3
+                    if (sector.border) {
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, avatarSize + 2, 0, Math.PI * 2);
+                        ctx.strokeStyle = sector.border;
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    }
+                } else {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.src = sector.avatar;
+                    img.onload = () => {
+                        imageCache[cacheKey] = img;
+                        drawMPWheel();
+                    };
+                    img.onerror = () => {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, avatarSize, 0, Math.PI * 2);
+                        ctx.fillStyle = sector.color;
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = `bold ${Math.floor(avatarSize * 0.8)}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText((sector.nickname || '?').substring(0, 2).toUpperCase(), ax, ay);
+                        ctx.restore();
+                    };
+                }
 
                 // Draw nickname
                 ctx.save();
-                ctx.translate(ax, ay + 24);
+                ctx.translate(ax, ay + avatarSize + 6);
                 const textAngle = midAngle > Math.PI / 2 && midAngle < 3 * Math.PI / 2 ? midAngle + Math.PI : midAngle;
                 ctx.rotate(textAngle);
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 10px sans-serif';
+                ctx.font = `bold ${Math.floor(avatarSize * 0.55)}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.fillText((sector.nickname || '').substring(0, 8), 0, 0);
                 ctx.restore();
@@ -1718,7 +1734,7 @@
                 startAngle = endAngle;
             });
 
-            // Outer ring
+            // Outer rings
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.strokeStyle = '#5d4037';
@@ -1732,7 +1748,7 @@
         }
 
         function animateMPWheel(targetAngle, totalRotation) {
-            if (!mpWheelCanvas) return;
+            if (!mpWheelCanvas || mpIsSpinning) return;
             if (mpSpinAnimationId) cancelAnimationFrame(mpSpinAnimationId);
 
             mpIsSpinning = true;
@@ -1746,11 +1762,8 @@
             function animate(now) {
                 const elapsed = now - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-
-                // Ease-out cubic
                 const eased = 1 - Math.pow(1 - progress, 3);
                 mpCurrentRotation = startRotation + (finalRotation - startRotation) * eased;
-
                 mpWheelCanvas.style.transform = 'rotate(' + mpCurrentRotation + 'deg)';
 
                 if (progress < 1) {
@@ -1807,7 +1820,6 @@
                 playLoseSound();
             }
 
-            // Winner modal
             const modal = $('#winnerModal');
             const content = $('#winnerModalContent');
             if (modal && content) {
@@ -1829,7 +1841,6 @@
         function closeWinnerModal() {
             const modal = $('#winnerModal');
             if (modal) modal.classList.remove('active');
-            resetMPRoom();
         }
 
         // ═══════════════════════════════════════
@@ -1880,7 +1891,7 @@
                     const amt = parseFloat($('#mpBetInput')?.value) || 0;
                     if (amt < 1) { toast('Минимум 1$'); return; }
                     if (amt > state.balance) { toast('Недостаточно средств'); return; }
-                    sendWS({
+                    sendMP({
                         action: 'mp_join_room',
                         room_id: r.room_id,
                         amount: amt,
@@ -1905,14 +1916,15 @@
             }
 
             const sorted = [...mpState.players].sort((a, b) => b.bet - a.bet);
-            lb.innerHTML = sorted.map((p, i) => {
+            lb.innerHTML = sorted.map((p) => {
                 const pct = mpState.bank > 0 ? ((p.bet / mpState.bank) * 100).toFixed(1) : 0;
                 const isMe = p.user_id === user.id;
                 return '<div class="mp-player-row' + (isMe ? ' active-player' : '') + '">' +
                     '<div style="display:flex;align-items:center;">' +
-                    '<img src="' + p.avatar + '" class="mp-player-avatar-img" style="border-color:' + p.color + '" onerror="this.style.display=\'none\'">' +
+                    '<img src="' + p.avatar + '" class="mp-player-avatar-img" style="border-color:' + (p.border || p.color) + '" onerror="this.style.display=\'none\'">' +
                     '<span class="mp-player-color-dot" style="background:' + p.color + '"></span>' +
                     (p.nickname || 'Игрок') + (isMe ? ' (вы)' : '') +
+                    (p.rank === 1 ? ' 👑' : p.rank === 2 ? ' 🥈' : p.rank === 3 ? ' 🥉' : '') +
                     '</div>' +
                     '<div style="font-weight:700;">' + p.bet.toFixed(2) + '$ <span style="font-size:10px;opacity:0.5;">(' + pct + '%)</span></div>' +
                     '</div>';
@@ -1950,7 +1962,7 @@
             drawMPWheel();
             renderMPLeaderboard();
             switchMPTab('lobby');
-            sendWS({ action: 'mp_get_rooms' });
+            sendMP({ action: 'mp_get_rooms' });
         }
 
         // ═══════════════════════════════════════
@@ -1965,7 +1977,7 @@
                 if (amt < 1) { toast('Минимум 1$'); return; }
                 if (amt > state.balance) { toast('Недостаточно средств'); return; }
 
-                sendWS({
+                sendMP({
                     action: 'mp_create_room',
                     amount: amt,
                     nickname: user.firstName || 'Player',
@@ -1989,7 +2001,7 @@
                 if (mpState.myBet + extra > state.balance) { toast('Недостаточно средств'); return; }
                 if (!mpMyRoom) { toast('Вы не в комнате'); return; }
 
-                sendWS({ action: 'mp_raise_bet', room_id: mpMyRoom, amount: extra });
+                sendMP({ action: 'mp_raise_bet', room_id: mpMyRoom, amount: extra });
                 this.disabled = true;
                 setTimeout(() => { if (mpRaiseBetBtn) mpRaiseBetBtn.disabled = false; }, 2000);
             });
@@ -1999,7 +2011,7 @@
         if (mpLeaveRoomBtn) {
             mpLeaveRoomBtn.addEventListener('click', () => {
                 if (!mpMyRoom) return;
-                sendWS({ action: 'mp_leave_room', room_id: mpMyRoom });
+                sendMP({ action: 'mp_leave_room', room_id: mpMyRoom });
                 resetMPRoom();
                 loadUser();
             });
@@ -2189,11 +2201,10 @@
             });
         });
 
-        // Winner modal overlay click
-        const winnerModal = $('#winnerModal');
-        if (winnerModal) {
-            winnerModal.addEventListener('click', function(e) {
-                if (e.target === winnerModal) closeWinnerModal();
+        const winnerModalOverlay = $('#winnerModal');
+        if (winnerModalOverlay) {
+            winnerModalOverlay.addEventListener('click', function(e) {
+                if (e.target === winnerModalOverlay) closeWinnerModal();
             });
         }
 
@@ -2217,7 +2228,6 @@
 
         loadUser();
 
-        // URL params
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('mode') === 'multiplayer') {
             $$('.tab-btn').forEach(x => x.classList.remove('active'));
@@ -2226,22 +2236,22 @@
             $$('.tab-content').forEach(x => x.classList.remove('active'));
             const tabMultiplayer = $('#tab-multiplayer');
             if (tabMultiplayer) tabMultiplayer.classList.add('active');
-            connectWS();
+            connectMPWS();
             switchMPTab('lobby');
-            setTimeout(() => { sendWS({ action: 'mp_get_rooms' }); }, 1000);
+            setTimeout(() => { sendMP({ action: 'mp_get_rooms' }); }, 1000);
         }
 
         // Keepalive ping
         setInterval(() => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                sendWS({ action: 'ping' });
+            if (mpWs && mpWs.readyState === WebSocket.OPEN) {
+                sendMP({ action: 'ping' });
             }
         }, 25000);
 
         // Cleanup on close
         window.addEventListener('beforeunload', () => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close(1000, 'Page closing');
+            if (mpWs && mpWs.readyState === WebSocket.OPEN) {
+                mpWs.close(1000, 'Page closing');
             }
             if (paymentCheckInterval) {
                 clearInterval(paymentCheckInterval);
