@@ -1156,6 +1156,7 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         user_active_rooms[user_id] = room_id
                         await save_mp_room_to_db(room_id)
                         await broadcast_to_room(room_id, build_room_state(room_id), exclude_user=user_id)
+                        await broadcast_to_room(room_id, {"type":"mp_player_joined","user_id":user_id,"nickname":nickname})
                         await ws.send_json(build_room_state(room_id, user_id))
 
                     elif action == "mp_raise_bet":

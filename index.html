@@ -55,7 +55,7 @@
         .balance-amount{font-size:22px;font-weight:800;background:linear-gradient(180deg,#ffd700,#4CAF50);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
         .tab-nav{display:flex;gap:8px;margin-bottom:16px;background:rgba(255,255,255,0.02);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-radius:20px;padding:6px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
-        .tab-btn{flex:1;padding:12px;border:none;background:transparent;color:rgba(255,255,255,0.45);border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.4s;position:relative}
+        .tab-btn{flex:1;padding:12px;border:none;background:transparent;color:rgba(255,255,255,0.45);border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.4s;position:relative}
         .tab-btn::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%) scaleX(0);width:60%;height:3px;background:linear-gradient(90deg,#4CAF50,#ffd200);border-radius:3px;transition:transform 0.4s}
         .tab-btn.active::after{transform:translateX(-50%) scaleX(1)}
         .tab-btn.active{background:linear-gradient(180deg,rgba(76,175,80,0.2),rgba(247,151,30,0.12));color:white}
@@ -115,12 +115,17 @@
 
         .hidden{display:none!important}
         .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:12px 24px;color:white;font-weight:600;font-size:13px;z-index:300}
-        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s ease}
+        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s ease}
         .loading-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,0.1);border-top-color:#ffd700;border-radius:50%;animation:spin 0.7s linear infinite}
+        .loading-text{font-size:14px;opacity:0.7;margin-top:12px}
+        .error-text{color:#ff6b6b;font-size:14px;margin-top:12px;text-align:center}
+        .retry-btn{margin-top:12px;padding:8px 20px;background:var(--accent);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer}
 
         .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:100;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px)}
         .modal-overlay.active{display:flex}
         .modal{background:linear-gradient(160deg,rgba(25,40,25,0.95),rgba(15,25,15,0.95));border-radius:28px;padding:28px;width:100%;max-width:400px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 30px 80px rgba(0,0,0,0.6);animation:popIn 0.3s ease}
+
+        .profile-buttons{display:flex;flex-direction:column;gap:8px;margin-top:16px}
 
         @media(max-width:380px){
             .roulette-wheel-container,.mp-wheel-container{width:220px;height:220px}
@@ -130,7 +135,10 @@
 </head>
 <body>
     <canvas id="particleCanvas"></canvas>
-    <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Загрузка...</div>
+    </div>
 
     <div class="app-container">
         <div class="header">
@@ -147,6 +155,7 @@
         <div class="tab-nav">
             <button class="tab-btn active" data-tab="single">🎡 Рулетка</button>
             <button class="tab-btn" data-tab="multiplayer">👥 Мультиплеер</button>
+            <button class="tab-btn" data-tab="profile">👤 Профиль</button>
         </div>
 
         <div class="tab-content active" id="tab-single">
@@ -214,6 +223,39 @@
             </div>
         </div>
 
+        <!-- ПРОФИЛЬ -->
+        <div class="tab-content" id="tab-profile">
+            <div class="game-area">
+                <div style="font-size:60px;animation:float 3s ease-in-out infinite;">👤</div>
+                <div style="font-size:18px;font-weight:700;margin-top:8px;" id="profileName">Игрок</div>
+                <div style="font-size:12px;opacity:0.5;margin-top:4px;">ID: <span id="profileId">---</span></div>
+            </div>
+            <div class="game-area">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;">
+                        <div style="font-size:11px;opacity:0.5;">Баланс</div>
+                        <div style="font-size:20px;font-weight:800;color:#ffd700;" id="profileBalance">0.00$</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;">
+                        <div style="font-size:11px;opacity:0.5;">Спинов</div>
+                        <div style="font-size:20px;font-weight:800;color:#4CAF50;" id="profileSpins">0</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;">
+                        <div style="font-size:11px;opacity:0.5;">Игр</div>
+                        <div style="font-size:20px;font-weight:800;" id="profileGames">0</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;">
+                        <div style="font-size:11px;opacity:0.5;">Побед</div>
+                        <div style="font-size:20px;font-weight:800;color:#4CAF50;" id="profileWins">0</div>
+                    </div>
+                </div>
+                <div class="profile-buttons">
+                    <button class="action-btn gold" id="profileDepositBtn">💳 Пополнить</button>
+                    <button class="action-btn green" id="profileWithdrawBtn">💸 Вывести</button>
+                </div>
+            </div>
+        </div>
+
         <div class="center-banner" id="centerBanner"></div>
     </div>
 
@@ -222,7 +264,9 @@
         <div class="modal">
             <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💳 Пополнение</div>
             <input type="number" id="depositAmount" value="10" min="1" placeholder="Сумма ($)">
-            <button class="action-btn gold" id="depositBtn">Оплатить через CryptoBot</button>
+            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:12px;">Оплата через CryptoBot (USDT)</p>
+            <button class="action-btn gold" id="depositConfirmBtn">Оплатить</button>
+            <p style="font-size:11px;opacity:0.4;text-align:center;margin-top:8px;" id="depositStatus"></p>
             <button class="action-btn ghost" id="depositCloseBtn">Закрыть</button>
         </div>
     </div>
@@ -232,7 +276,7 @@
         <div class="modal">
             <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💸 Вывод</div>
             <p style="font-size:13px;opacity:0.7;text-align:center;">Доступно: <span id="withdrawAvailable" style="color:#4CAF50;">0.00$</span></p>
-            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:12px;">Сыграно: <span id="withdrawGames">0</span> игр</p>
+            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:8px;">Мин. 2 игры. Сыграно: <span id="withdrawGames">0</span></p>
             <input type="number" id="withdrawAmount" placeholder="Сумма">
             <input type="text" id="withdrawWallet" placeholder="USDT адрес или @username">
             <button class="action-btn green" id="withdrawConfirmBtn">Вывести</button>
@@ -272,12 +316,25 @@
         let ws = null, wheelRotation = 0, wsReconnectDelay = 1000;
         let mpState = { players:[], bank:0, timer:30, myBet:0, roundActive:false };
         let audioCtx = null;
-        let isLoading = true;
+        let pendingPaymentId = null;
+        let paymentCheckInterval = null;
 
         const $ = s => document.querySelector(s);
         const $$ = s => document.querySelectorAll(s);
 
-        function hideLoading() { isLoading = false; const el = $('#loadingOverlay'); if(el) { el.style.opacity='0'; el.style.transition='opacity 0.5s'; setTimeout(function(){el.remove()},500); } }
+        function showError(msg) {
+            const overlay = $('#loadingOverlay');
+            overlay.innerHTML = '<div style="font-size:40px;margin-bottom:10px;">⚠️</div><div class="error-text">' + msg + '</div><button class="retry-btn" onclick="location.reload()">🔄 Перезагрузить</button>';
+        }
+
+        function hideLoading() { 
+            const el = $('#loadingOverlay'); 
+            if(el && el.querySelector('.loading-spinner')) { 
+                el.style.opacity='0'; 
+                el.style.transition='opacity 0.5s'; 
+                setTimeout(function(){el.remove();}, 500); 
+            }
+        }
 
         // Audio
         function getAudioContext() {
@@ -334,13 +391,22 @@
                     state.gamesSinceWithdrawal = d.games_since_withdrawal || 0;
                     updateUI();
                 }
-            } catch(e) { console.error('Load error:', e); }
-            hideLoading();
+                hideLoading();
+            } catch(e) { 
+                console.error('Load error:', e); 
+                showError('Не удалось загрузить данные.<br>Проверьте соединение.');
+            }
         }
 
         function updateUI() {
             $('#balanceDisplay').textContent = state.balance.toFixed(2) + '$';
             $('#freeSpinCount').textContent = state.freeSpins;
+            $('#profileBalance').textContent = state.balance.toFixed(2) + '$';
+            $('#profileSpins').textContent = state.freeSpins;
+            $('#profileGames').textContent = state.totalGames;
+            $('#profileWins').textContent = state.wins;
+            $('#profileName').textContent = user.firstName || 'Игрок';
+            $('#profileId').textContent = user.id;
             $('#withdrawAvailable').textContent = state.balance.toFixed(2) + '$';
             $('#withdrawGames').textContent = state.gamesSinceWithdrawal;
         }
@@ -376,6 +442,7 @@
             $$('.tab-content').forEach(function(x) { x.classList.remove('active'); });
             var t = $('#tab-' + b.dataset.tab); if (t) t.classList.add('active');
             if (b.dataset.tab === 'multiplayer') { connectWS(); switchMPTab('lobby'); setTimeout(function() { sendWS({action:'mp_get_rooms'}); }, 1000); }
+            if (b.dataset.tab === 'profile') { updateUI(); }
             vibrate();
         });});
 
@@ -389,7 +456,6 @@
             if (b.dataset.bet !== 'number') { state.selectedBet = b.dataset.bet; $('#numberBetInput').style.display = 'none'; }
             vibrate();
         });});
-
         $$('[data-quick]').forEach(function(b) { b.addEventListener('click', function() { $('#betAmount').value = b.dataset.quick; vibrate(); }); });
         $('#freeSpinToggle').addEventListener('click', function() { if (state.freeSpins <= 0) { toast('Нет спинов'); return; } this.classList.toggle('checked'); vibrate(); });
 
@@ -474,8 +540,8 @@
                 case 'mp_result': showMPResult(data); break;
                 case 'mp_round_reset': resetMPRoom(); break;
                 case 'mp_left_room': resetMPRoom(); toast('Вы вышли'); break;
+                case 'mp_player_joined': playJoinSound(); toast('🎲 Игрок присоединился!'); break;
                 case 'mp_player_raised': toast('⬆️ ' + (data.nickname||'Игрок') + ' повысил!'); break;
-                case 'mp_player_joined': playJoinSound(); break;
                 case 'connected': break;
                 case 'error': toast(data.message); break;
                 case 'pong': break;
@@ -595,39 +661,78 @@
             sendWS({action:'mp_leave_room', room_id: mpMyRoom}); resetMPRoom(); loadUser();
         });
 
-        // Deposit modal
-        function showDeposit() { $('#depositModal').classList.add('active'); $('#depositAmount').value = 10; }
-        $('#depositCloseBtn').addEventListener('click', function() { $('#depositModal').classList.remove('active'); });
-        $('#depositBtn').addEventListener('click', async function() {
+        // ═══════════════════════════════════════
+        // ДЕПОЗИТ
+        // ═══════════════════════════════════════
+        function showDeposit() { 
+            $('#depositModal').classList.add('active'); 
+            $('#depositAmount').value = 10; 
+            $('#depositStatus').textContent = ''; 
+            if (paymentCheckInterval) { clearInterval(paymentCheckInterval); paymentCheckInterval = null; }
+        }
+
+        $('#depositCloseBtn').addEventListener('click', function() { 
+            $('#depositModal').classList.remove('active'); 
+            if (paymentCheckInterval) { clearInterval(paymentCheckInterval); paymentCheckInterval = null; }
+        });
+
+        $('#depositConfirmBtn').addEventListener('click', async function() {
             var amount = parseFloat($('#depositAmount').value) || 0;
             if (amount <= 0) { toast('Введите сумму'); return; }
+            var btn = this;
+            btn.disabled = true; btn.textContent = '⏳ Создание счёта...';
+            
             try {
                 var r = await api('/api/create_invoice', { amount: amount });
                 if (r.success) {
+                    pendingPaymentId = r.payment_id;
+                    $('#depositStatus').textContent = '⏳ Ожидание оплаты...';
+                    
                     if (tg) { tg.openLink(r.invoice_url); }
                     else { window.open(r.invoice_url, '_blank'); }
-                    $('#depositModal').classList.remove('active');
-                    toast('Оплатите через CryptoBot');
-                    // Проверяем платёж через 10 секунд
-                    setTimeout(async function() {
-                        var check = await api('/api/check_payment', { payment_id: r.payment_id });
-                        if (check.success && check.status === 'paid') {
-                            state.balance = check.new_balance;
-                            updateUI();
-                            toast('✅ Баланс пополнен!');
-                        }
-                    }, 10000);
+                    
+                    // Проверка каждые 5 секунд
+                    if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+                    paymentCheckInterval = setInterval(async function() {
+                        if (!pendingPaymentId) { clearInterval(paymentCheckInterval); return; }
+                        try {
+                            var check = await api('/api/check_payment', { payment_id: pendingPaymentId });
+                            if (check.success && check.status === 'paid') {
+                                state.balance = check.new_balance;
+                                updateUI();
+                                $('#depositStatus').textContent = '✅ Оплачено! +' + check.amount + '$';
+                                pendingPaymentId = null;
+                                clearInterval(paymentCheckInterval);
+                                paymentCheckInterval = null;
+                                btn.disabled = false; btn.textContent = 'Оплатить';
+                                setTimeout(function() { $('#depositModal').classList.remove('active'); }, 2000);
+                            }
+                        } catch(e) {}
+                    }, 5000);
+                    
+                    btn.textContent = 'Оплатить (ожидание)';
+                } else {
+                    $('#depositStatus').textContent = '❌ Ошибка создания счёта';
                 }
-            } catch(e) {}
+            } catch(e) {
+                $('#depositStatus').textContent = '❌ Ошибка';
+            }
+            btn.disabled = false;
         });
 
-        // Withdraw modal
+        // Кнопка из профиля
+        $('#profileDepositBtn').addEventListener('click', showDeposit);
+
+        // ═══════════════════════════════════════
+        // ВЫВОД
+        // ═══════════════════════════════════════
         function showWithdraw() {
             if (state.gamesSinceWithdrawal < 2) { toast('Сыграйте минимум 2 игры'); return; }
             if (state.balance <= 0) { toast('Нет средств'); return; }
             updateUI();
             $('#withdrawModal').classList.add('active');
         }
+
         $('#withdrawCloseBtn').addEventListener('click', function() { $('#withdrawModal').classList.remove('active'); });
         $('#withdrawConfirmBtn').addEventListener('click', async function() {
             var amount = parseFloat($('#withdrawAmount').value) || 0;
@@ -646,6 +751,23 @@
             } catch(e) {}
         });
 
+        $('#profileWithdrawBtn').addEventListener('click', showWithdraw);
+
+        // ═══════════════════════════════════════
+        // ЗАКРЫТИЕ МОДАЛОК ПО КЛИКУ ВНЕ
+        // ═══════════════════════════════════════
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                    if (paymentCheckInterval && overlay.id === 'depositModal') {
+                        clearInterval(paymentCheckInterval);
+                        paymentCheckInterval = null;
+                    }
+                }
+            });
+        });
+
         // Init
         loadUser();
         var urlParams = new URLSearchParams(window.location.search);
@@ -655,7 +777,7 @@
             if (m) { m.classList.add('active'); $$('.tab-content').forEach(function(x) { x.classList.remove('active'); }); $('#tab-multiplayer').classList.add('active'); connectWS(); switchMPTab('lobby'); setTimeout(function() { sendWS({action:'mp_get_rooms'}); }, 1000); }
         }
         setInterval(function() { if (ws && ws.readyState === WebSocket.OPEN) sendWS({action:'ping'}); }, 25000);
-        window.addEventListener('beforeunload', function() { if (ws) ws.close(); });
+        window.addEventListener('beforeunload', function() { if (ws) ws.close(); if (paymentCheckInterval) clearInterval(paymentCheckInterval); });
     </script>
 </body>
 </html>
