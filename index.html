@@ -60,7 +60,6 @@
         .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:transparent;position:relative;overflow:visible}
         .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:1}
         /* Цифры внутри кольца — вращаются вместе с ним */
-        .wheel-number{position:absolute;font-size:9px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;z-index:2;width:16px;text-align:center;color:#fff}
         .roulette-ball{position:absolute;width:14px;height:14px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-7px;margin-top:-124px;box-shadow:0 0 12px rgba(255,255,255,0.8);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5;animation:ballJump 0.3s ease-in-out infinite}
         .roulette-ball.stopped{animation:none}
         .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#a08060,#6d4c30);border-radius:50%;border:3px solid #4a3020;z-index:4}
@@ -69,7 +68,6 @@
         /* MP КОЛЕСО */
         .mp-wheel-container{position:relative;width:260px;height:260px;margin:16px auto}
         .mp-wheel-ring{width:260px;height:260px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);border:4px solid #5d4037;box-shadow:0 0 40px rgba(255,215,0,0.4),0 0 80px rgba(255,215,0,0.2);position:relative;overflow:hidden}
-        .mp-wheel-number{position:absolute;font-size:9px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.8);pointer-events:none;z-index:2;width:16px;text-align:center;color:#fff;white-space:nowrap}
         .mp-wheel-marker{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ffd700;z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6))}
         .mp-wheel-center{position:absolute;top:50%;left:50%;width:50px;height:50px;margin-left:-25px;margin-top:-25px;background:radial-gradient(circle,#ffd700,#b8960f);border-radius:50%;border:3px solid #3a2a10;z-index:3;display:flex;align-items:center;justify-content:center;font-size:22px}
         .mp-timer{font-size:28px;font-weight:800;color:#f7971e;animation:pulse 1s ease-in-out infinite}
@@ -322,32 +320,6 @@
         var rNumbers = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
         var reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
 
-        function clearWheelNumbers(ring) {
-            ring.querySelectorAll('.wheel-number').forEach(function(el){ el.remove(); });
-        }
-
-        function drawWheelNumbersOnRing(ring, numbers, redsSet) {
-            clearWheelNumbers(ring);
-            var ringWidth = ring.offsetWidth || 260;
-            var radius = ringWidth/2 - 12;
-            numbers.forEach(function(num, i) {
-                var angle = (360/37)*i - 90;
-                var rad = angle * Math.PI/180;
-                var x = radius + Math.cos(rad)*radius*0.76;
-                var y = radius + Math.sin(rad)*radius*0.76;
-                var span = document.createElement('span');
-                span.className = 'wheel-number';
-                span.textContent = num;
-                span.style.left = x+'px';
-                span.style.top = y+'px';
-                span.style.transform = 'translate(-50%,-50%) rotate('+(angle+90)+'deg)';
-                if(num===0) span.style.color='#ffd700';
-                else if(redsSet.includes(num)) span.style.color='#ff8888';
-                else span.style.color='#ddd';
-                ring.appendChild(span);
-            });
-        }
-
         function buildRouletteRing() {
             var ring = $('#rouletteRing');
             var slices = [];
@@ -356,41 +328,8 @@
                 slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg');
             });
             ring.style.background = 'conic-gradient('+slices.join(',')+')';
-            drawWheelNumbersOnRing(ring, rNumbers, reds);
         }
         buildRouletteRing();
-
-        // MP Wheel numbers
-        function drawMPWheelNumbers() {
-            var ring = $('#mpWheelRing');
-            if(!ring) return;
-            clearWheelNumbers(ring);
-            var ringWidth = ring.offsetWidth || 236;
-            var radius = ringWidth/2 - 12;
-            // На MP-колесе показываем имена игроков вместо чисел
-            if(mpState.players && mpState.players.length > 0) {
-                mpState.players.forEach(function(p, i) {
-                    var total = mpState.bank || 1;
-                    var pct = p.bet/total;
-                    var midAngle = 0;
-                    var cumDeg = 0;
-                    for(var j=0; j<i; j++) {
-                        cumDeg += (mpState.players[j].bet/total)*360;
-                    }
-                    midAngle = cumDeg + (pct*360)/2 - 90;
-                    var rad = midAngle * Math.PI/180;
-                    var x = radius + Math.cos(rad)*radius*0.65;
-                    var y = radius + Math.sin(rad)*radius*0.65;
-                    var span = document.createElement('span');
-                    span.className = 'mp-wheel-number';
-                    span.textContent = (p.nickname||'P'+p.user_id).substring(0,8);
-                    span.style.left = x+'px';
-                    span.style.top = y+'px';
-                    span.style.transform = 'translate(-50%,-50%) rotate('+(midAngle+90)+'deg)';
-                    ring.appendChild(span);
-                });
-            }
-        }
 
         // ═══════════════════════════════════════
         // TABS
@@ -401,7 +340,6 @@
             var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');
             if(b.dataset.tab==='multiplayer'){connectWS();switchMPTab('lobby');setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}
             if(b.dataset.tab==='profile'){updateUI();}
-            if(b.dataset.tab==='single'){setTimeout(function(){drawWheelNumbersOnRing($('#rouletteRing'), rNumbers, reds);},200);}
             vibrate();
         });});
 
@@ -533,7 +471,6 @@
             mpState.players.forEach(function(p,i){var pct=p.bet/total;var deg=pct*360;slices.push((p.color||mpColors[i%mpColors.length])+' '+usedDeg+'deg '+(usedDeg+deg)+'deg');usedDeg+=deg;});
             if(usedDeg<360)slices.push('#1a1a1a '+usedDeg+'deg 360deg');
             ring.style.background='conic-gradient('+slices.join(',')+')';
-            drawMPWheelNumbers();
         }
 
         function renderMPLeaderboard(){

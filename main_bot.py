@@ -660,7 +660,12 @@ async def support_start(message: Message):
     )
 
 @support_router.message(F.text, ~F.text.startswith("/"))
-async def support_receive(message: Message):
+async def support_receive(message: Message, state: FSMContext):
+    # НЕ перехватываем сообщения если пользователь в процессе админки
+    current_state = await state.get_state()
+    if current_state:
+        return
+    
     user_id = message.from_user.id
     msg_text = message.text or message.caption or ""
     
@@ -670,13 +675,13 @@ async def support_receive(message: Message):
     )
     await sqlite_pool.commit()
     
-    await message.answer("✅ Сообщение отправлено!", reply_markup=get_main_keyboard(message.from_user.id))
+    await message.answer("✅ Сообщение отправлено! Ответ придёт сюда.", reply_markup=get_main_keyboard(message.from_user.id))
     
     for admin_id in config.ADMIN_IDS:
         try:
             await message.bot.send_message(
                 admin_id,
-                f"📩 *Обращение*\n👤 `{user_id}`\n@{message.from_user.username or 'нет'}\n📝 {msg_text}\n💡 `/reply {user_id} ответ`",
+                f"📩 *Обращение*\n👤 `{user_id}`\n📝 {msg_text[:200]}\n💡 `/reply {user_id} ответ`",
                 parse_mode=ParseMode.MARKDOWN
             )
         except: pass
