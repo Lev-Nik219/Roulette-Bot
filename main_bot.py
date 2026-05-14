@@ -1082,14 +1082,14 @@ def create_app() -> web.Application:
     app.router.add_post("/api/withdraw", api_withdraw)
 
     # --- MP Server & Proxy ---
-    async def start_mp_server(app):
-        """Запуск MP-сервера внутри основного процесса"""
-        import mp_server
-        runner = web.AppRunner(mp_server.create_app())
-        await runner.setup()
-        site = web.TCPSite(runner, 'localhost', 10001)
-        await site.start()
-        logger.info("✅ MP server started on internal port 10001")
+async def start_mp_server(app):
+    import mp_server
+    mp_server.set_db(sqlite_pool)  # ← ВОТ ЭТО
+    runner = web.AppRunner(mp_server.create_app())
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 10001)
+    await site.start()
+    logger.info("✅ MP server started on internal port 10001")
 
     async def proxy_mp_ws(request):
         """Прокси WebSocket запросов на внутренний MP-сервер"""

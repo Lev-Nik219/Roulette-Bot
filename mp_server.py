@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🎡 LN Roulette Multiplayer Server v2.0
+🎡 LN Roulette Multiplayer Server v2.1
 Отдельный WebSocket-сервер для мультиплеера
-Canvas wheel, live sectors, 100ms state sync
+Использует sqlite_pool из main_bot.py
 """
 import asyncio
 import logging
@@ -17,11 +17,12 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Dict, Any, Optional, List, Tuple
 from collections import defaultdict
-import aiosqlite
 
 from aiohttp import web
 from aiohttp.web_request import Request
-from aiohttp.web_response import Response, json_response
+
+# Глобальная ссылка на БД (устанавливается из main_bot.py)
+db = None
 
 # ═══════════════════════════════════════
 # LOGGING
@@ -35,22 +36,15 @@ log_handler = RotatingFileHandler(
 )
 log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[logging.StreamHandler(sys.stdout), log_handler],
-)
 logger = logging.getLogger('mp_server')
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 # ═══════════════════════════════════════
 # КОНФИГУРАЦИЯ
 # ═══════════════════════════════════════
 
-HOST = "0.0.0.0"
-PORT = int(os.getenv("MP_PORT", 10001))
-SQLITE_DB_PATH = "database/mini_app.db"
-API_URL = "https://roulette-bot-8i8t.onrender.com"
-
-# Игровые настройки
 MAX_PLAYERS = 10
 MIN_PLAYERS = 2
 ROUND_TIMER = 30
@@ -60,36 +54,30 @@ COMMISSION = 0.10
 MAX_BET_PERCENTAGE = 0.80
 MAX_ROOMS_PER_USER = 3
 
-# Палитра цветов (12 цветов)
 PLAYER_COLORS = [
     "#FF6B6B", "#4ECDC4", "#FFEAA7", "#DDA0DD", "#45B7D1",
     "#96CEB4", "#FF8C00", "#F7DC6F", "#FF69B4", "#7B68EE",
     "#00CED1", "#FFD700"
 ]
 
-# ТОП-3 рамки
-TOP_BORDERS = ["#FFD700", "#C0C0C0", "#CD7F32"]  # золото, серебро, бронза
+TOP_BORDERS = ["#FFD700", "#C0C0C0", "#CD7F32"]
 
-# ═══════════════════════════════════════
-# БАЗА ДАННЫХ
-# ═══════════════════════════════════════
-
-db: Optional[aiosqlite.Connection] = None
+BOT_NAMES = ["LuckyBot", "RoulettePro", "CasinoKing", "FortuneAI", "SpinMaster"]
 
 
-async def init_db():
+def set_db(sqlite_pool):
+    """Установка подключения к БД из main_bot.py"""
     global db
-    os.makedirs("database", exist_ok=True)
-    db = await aiosqlite.connect(SQLITE_DB_PATH)
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA journal_mode=WAL")
-    await db.execute("PRAGMA busy_timeout=5000")
-    logger.info("✅ MP DB ready")
+    db = sqlite_pool
+    logger.info("✅ MP DB connected")
 
 
 async def get_user(user_id: int) -> Optional[Dict]:
+    if not db:
+        logger.error("DB not initialized")
+        return None
     try:
-        async with db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
+        async with db.execute("SELECT * FROM users WHERE user_id = ?", (int(user_id),)) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
     except Exception as e:
@@ -98,6 +86,8 @@ async def get_user(user_id: int) -> Optional[Dict]:
 
 
 async def update_balance(user_id: int, new_balance: float):
+    if not db:
+        return
     try:
         await db.execute(
             "UPDATE users SET balance=?, updated_at=strftime('%s','now') WHERE user_id=?",
@@ -109,56 +99,50 @@ async def update_balance(user_id: int, new_balance: float):
 
 
 # ═══════════════════════════════════════
-# ИГРОВОЕ СОСТОЯНИЕ
+# ИГРОВЫЕ КЛАССЫ
 # ═══════════════════════════════════════
 
 
 class Player:
-    def __init__(self, user_id: int, nickname: str, avatar_url: str = None):
+    def __init__(self, user_id: int, nickname: str):
         self.user_id = user_id
         self.nickname = nickname[:15]
-        self.avatar_url = avatar_url or self._generate_avatar(nickname)
         self.bet = 0.0
         self.color = ""
         self.border = ""
 
-    def _generate_avatar(self, nickname: str) -> str:
-        safe = (nickname or "??")[:2].upper()
+    @property
+    def avatar_url(self) -> str:
+        safe = (self.nickname or "??")[:2].upper()
         return f"https://ui-avatars.com/api/?name={safe}&background=555&color=fff&size=64&bold=true&format=svg"
 
 
 class MPRoom:
-    def __init__(self, room_id: str, room_name: str, creator_id: int):
+    def __init__(self, room_id: str, room_name: str):
         self.room_id = room_id
         self.room_name = room_name[:30]
-        self.creator_id = creator_id
         self.players: Dict[int, Player] = {}
         self.total_bank = 0.0
         self.timer = ROUND_TIMER
         self.timer_extensions = 0
-        self.status = "waiting"  # waiting, spinning, finished
+        self.status = "waiting"
         self.timer_task: Optional[asyncio.Task] = None
-        self.spin_task: Optional[asyncio.Task] = None
         self.winner_id: Optional[int] = None
         self.winner_angle: float = 0.0
         self.last_activity = time.time()
 
     def get_players_list(self) -> List[Dict]:
         players = []
-        sorted_players = sorted(self.players.items(), key=lambda x: x[1].bet, reverse=True)
+        sorted_players = sorted(
+            [(uid, p) for uid, p in self.players.items() if p.bet > 0],
+            key=lambda x: x[1].bet,
+            reverse=True,
+        )
 
         for rank, (uid, player) in enumerate(sorted_players):
-            if player.bet == 0:
-                continue
             pct = (player.bet / self.total_bank * 100) if self.total_bank > 0 else 0
             angle = (player.bet / self.total_bank * 360) if self.total_bank > 0 else 0
-
-            # Присваиваем рамку ТОП-3
-            border = ""
-            if rank < 3 and player.bet > 0:
-                border = TOP_BORDERS[rank]
-
-            player.border = border
+            border = TOP_BORDERS[rank] if rank < 3 else ""
 
             players.append({
                 "user_id": uid,
@@ -175,11 +159,7 @@ class MPRoom:
         return players
 
     def get_wheel_data(self) -> Dict:
-        return {
-            "sectors": self.get_players_list(),
-            "bank": self.total_bank,
-            "status": self.status,
-        }
+        return {"sectors": self.get_players_list(), "bank": self.total_bank}
 
     def get_state(self, my_user_id: int = None) -> Dict:
         my_bet = self.players[my_user_id].bet if my_user_id and my_user_id in self.players else 0.0
@@ -203,39 +183,59 @@ class MPRoom:
 ws_connections: Dict[int, web.WebSocketResponse] = {}
 rooms: Dict[str, MPRoom] = {}
 user_rooms: Dict[int, str] = {}
-rate_limits: Dict[str, List[float]] = defaultdict(list)
-
-# Боты для отладки
-BOT_NAMES = ["LuckyBot", "RoulettePro", "CasinoKing", "FortuneAI", "SpinMaster"]
-BOT_EMOJIS = ["🤖", "🎰", "👑", "🍀", "🎯"]
 
 
 async def add_bots_to_room(room_id: str):
-    """Добавляем 5 ботов со случайными ставками"""
     room = rooms.get(room_id)
     if not room or room.status != "waiting":
         return
 
     for i in range(5):
         bot_id = 900000 + i
-        bot_name = BOT_NAMES[i]
-        bot_emoji = BOT_EMOJIS[i]
-
-        # Проверяем, нет ли уже бота
         if bot_id in room.players:
             continue
-
-        # Случайная ставка от 1 до 50
         bet_amount = round(random.uniform(1, 50), 2)
-
-        player = Player(bot_id, bot_name)
+        player = Player(bot_id, BOT_NAMES[i])
         player.color = PLAYER_COLORS[len(room.players) % len(PLAYER_COLORS)]
         player.bet = bet_amount
-
         room.players[bot_id] = player
         room.total_bank += bet_amount
 
-    logger.info(f"🤖 Added {5} bots to room {room_id}")
+    logger.info(f"🤖 Added 5 bots to room {room_id}")
+
+
+# ═══════════════════════════════════════
+# РАССЫЛКА
+# ═══════════════════════════════════════
+
+
+async def send_ws(ws: web.WebSocketResponse, data: Dict):
+    try:
+        if not ws.closed:
+            await ws.send_json(data)
+    except Exception:
+        pass
+
+
+async def broadcast_to_room(room_id: str, data: Dict, exclude: int = None):
+    room = rooms.get(room_id)
+    if not room:
+        return
+    tasks = []
+    for uid in list(room.players.keys()):
+        if uid != exclude and uid < 900000 and uid in ws_connections:
+            tasks.append(send_ws(ws_connections[uid], data))
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def broadcast_state(room_id: str):
+    room = rooms.get(room_id)
+    if not room:
+        return
+    for uid in list(room.players.keys()):
+        if uid < 900000 and uid in ws_connections:
+            await send_ws(ws_connections[uid], room.get_state(uid))
 
 
 # ═══════════════════════════════════════
@@ -244,7 +244,6 @@ async def add_bots_to_room(room_id: str):
 
 
 async def start_timer(room_id: str):
-    """Таймер раунда"""
     room = rooms.get(room_id)
     if not room:
         return
@@ -253,44 +252,33 @@ async def start_timer(room_id: str):
     room.timer = ROUND_TIMER
     room.timer_extensions = 0
 
-    # Добавляем ботов
     await add_bots_to_room(room_id)
-
-    # Рассылаем начальное состояние
     await broadcast_state(room_id)
 
     while room.timer > 0 and room.status == "waiting":
         await asyncio.sleep(1)
         if room_id not in rooms:
             return
-
         room.timer -= 1
-
-        # Отправляем таймер каждую секунду
         await broadcast_to_room(room_id, {"type": "mp_timer", "time": room.timer})
 
     if room_id not in rooms:
         return
 
-    if room.status == "waiting" and len([p for p in room.players.values() if p.bet > 0]) >= MIN_PLAYERS:
+    active_players = [p for p in room.players.values() if p.bet > 0]
+    if room.status == "waiting" and len(active_players) >= MIN_PLAYERS:
         await start_spin(room_id)
     else:
-        await broadcast_to_room(room_id, {
-            "type": "mp_round_cancelled",
-            "reason": "Недостаточно игроков"
-        })
+        await broadcast_to_room(room_id, {"type": "mp_round_cancelled", "reason": "Недостаточно игроков"})
         await reset_room(room_id)
 
 
 async def start_spin(room_id: str):
-    """Запуск вращения"""
     room = rooms.get(room_id)
     if not room:
         return
 
     room.status = "spinning"
-
-    # Выбор победителя
     active_players = [(uid, p) for uid, p in room.players.items() if p.bet > 0]
 
     if not active_players:
@@ -303,43 +291,36 @@ async def start_spin(room_id: str):
 
     room.winner_id = winner_id
 
-    # Расчёт угла победителя
     cumulative = 0
     for uid, p in active_players:
         angle = (p.bet / total) * 360
         if uid == winner_id:
-            room.winner_angle = cumulative + angle / 2
-            room.winner_angle += random.uniform(-angle * 0.3, angle * 0.3)
+            room.winner_angle = cumulative + angle / 2 + random.uniform(-angle * 0.3, angle * 0.3)
             break
         cumulative += angle
 
     total_rotation = 720 + random.randint(360, 1080)
 
-    # Отправляем событие вращения
     await broadcast_to_room(room_id, {
         "type": "mp_spin_start",
         "winner_angle": room.winner_angle,
         "total_rotation": total_rotation,
     })
 
-    # Ждём анимацию (5 секунд)
     await asyncio.sleep(5)
 
     if room_id not in rooms:
         return
 
-    # Расчёт выплат
     commission = room.total_bank * COMMISSION
     win_amount = room.total_bank - commission
 
-    # Начисляем выигрыш (если не бот)
     if winner_id < 900000:
         winner_user = await get_user(winner_id)
         if winner_user:
             await update_balance(winner_id, winner_user["balance"] + win_amount)
             logger.info(f"🏆 Winner {winner_id}: +{win_amount}$")
 
-    # Результат
     await broadcast_to_room(room_id, {
         "type": "mp_result",
         "winner_id": winner_id,
@@ -352,26 +333,19 @@ async def start_spin(room_id: str):
         "players_count": len(active_players),
     })
 
-    # Ждём показ результатов
     await asyncio.sleep(5)
-
-    # Новый раунд
     await reset_room(room_id)
 
 
 async def reset_room(room_id: str):
-    """Сброс комнаты для нового раунда"""
     room = rooms.get(room_id)
     if not room:
         return
 
-    # Возвращаем ставки реальным игрокам (не ботам)
     for uid, player in list(room.players.items()):
         if uid >= 900000:
-            # Ботов удаляем
             del room.players[uid]
         else:
-            # Игрокам возвращаем ставки
             if player.bet > 0:
                 user = await get_user(uid)
                 if user:
@@ -385,52 +359,9 @@ async def reset_room(room_id: str):
     room.winner_angle = 0
     room.status = "waiting"
 
-    # Запускаем новый раунд
     room.timer_task = asyncio.create_task(start_timer(room_id))
 
-    await broadcast_to_room(room_id, {
-        "type": "mp_new_round",
-        "message": "Новый раунд начинается!"
-    })
-
-
-# ═══════════════════════════════════════
-# РАССЫЛКА СОСТОЯНИЙ
-# ═══════════════════════════════════════
-
-
-async def send_ws(ws: web.WebSocketResponse, data: Dict):
-    try:
-        if not ws.closed:
-            await ws.send_json(data)
-    except Exception as e:
-        logger.debug(f"send_ws error: {e}")
-
-
-async def broadcast_to_room(room_id: str, data: Dict, exclude: int = None):
-    room = rooms.get(room_id)
-    if not room:
-        return
-
-    tasks = []
-    for uid in room.players:
-        if uid != exclude and uid in ws_connections and uid < 900000:
-            tasks.append(send_ws(ws_connections[uid], data))
-
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-
-async def broadcast_state(room_id: str):
-    """Отправка полного состояния всем игрокам"""
-    room = rooms.get(room_id)
-    if not room:
-        return
-
-    for uid in room.players:
-        if uid in ws_connections and uid < 900000:
-            state = room.get_state(uid)
-            await send_ws(ws_connections[uid], state)
+    await broadcast_to_room(room_id, {"type": "mp_new_round", "message": "Новый раунд начинается!"})
 
 
 # ═══════════════════════════════════════
@@ -452,7 +383,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                     data = json.loads(msg.data)
                     action = data.get("action")
 
-                    # --- CONNECT ---
                     if action == "connect":
                         uid = int(data.get("user_id", 0))
                         if uid <= 0:
@@ -465,11 +395,10 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                             await ws.send_json({"type": "error", "message": "User not found"})
                             continue
 
-                        # Закрываем старое соединение
                         if user_id in ws_connections and not ws_connections[user_id].closed:
                             try:
                                 await ws_connections[user_id].close(code=1000)
-                            except:
+                            except Exception:
                                 pass
 
                         ws_connections[user_id] = ws
@@ -480,23 +409,19 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         })
                         logger.info(f"🔌 Connected: user={user_id}")
 
-                    # --- GET ROOMS ---
                     elif action == "mp_get_rooms":
                         rooms_list = []
                         for rid, r in rooms.items():
-                            if r.status in ("waiting", "spinning"):
+                            if r.status in ("waiting",):
                                 rooms_list.append({
                                     "room_id": rid,
                                     "name": r.room_name,
                                     "players_count": len([p for p in r.players.values() if p.bet > 0]),
                                     "bank": r.total_bank,
                                     "timer": r.timer,
-                                    "status": r.status,
                                 })
-
                         await ws.send_json({"type": "mp_rooms_list", "rooms": rooms_list})
 
-                    # --- CREATE ROOM ---
                     elif action == "mp_create_room":
                         if not user_id:
                             continue
@@ -505,7 +430,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         nickname = str(data.get("nickname", f"Player_{user_id}"))[:15]
                         room_name = str(data.get("room_name", f"Room #{user_id}"))[:30]
 
-                        # Проверка лимита комнат
                         user_room_count = sum(1 for uid, rid in user_rooms.items()
                                               if uid == user_id and rid in rooms)
                         if user_room_count >= MAX_ROOMS_PER_USER:
@@ -524,7 +448,7 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         await update_balance(user_id, user["balance"] - amount)
 
                         room_id = secrets.token_hex(4).upper()
-                        room = MPRoom(room_id, room_name, user_id)
+                        room = MPRoom(room_id, room_name)
 
                         player = Player(user_id, nickname)
                         player.color = PLAYER_COLORS[0]
@@ -537,11 +461,9 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         current_room = room_id
 
                         room.timer_task = asyncio.create_task(start_timer(room_id))
-
                         await ws.send_json(room.get_state(user_id))
                         logger.info(f"🎯 Room {room_id} created by {user_id}")
 
-                    # --- JOIN ROOM ---
                     elif action == "mp_join_room":
                         if not user_id:
                             continue
@@ -558,7 +480,7 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         if not room:
                             await ws.send_json({"type": "error", "message": "Комната не найдена"})
                             continue
-                        if room.status not in ("waiting",):
+                        if room.status != "waiting":
                             await ws.send_json({"type": "error", "message": "Игра уже идёт"})
                             continue
                         if len([p for p in room.players.values() if p.bet > 0]) >= MAX_PLAYERS:
@@ -567,8 +489,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         if amount < 1:
                             await ws.send_json({"type": "error", "message": "Минимум 1$"})
                             continue
-
-                        # Проверка максимальной ставки
                         if room.total_bank > 0 and amount > room.total_bank * MAX_BET_PERCENTAGE:
                             await ws.send_json({
                                 "type": "error",
@@ -595,7 +515,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         await broadcast_state(room_id)
                         logger.info(f"👤 {user_id} joined room {room_id}")
 
-                    # --- RAISE BET ---
                     elif action == "mp_raise_bet":
                         if not user_id:
                             continue
@@ -620,8 +539,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
 
                         player = room.players[user_id]
                         new_bet = player.bet + extra
-
-                        # Проверка максимальной ставки
                         if new_bet > (room.total_bank + extra) * MAX_BET_PERCENTAGE:
                             await ws.send_json({
                                 "type": "error",
@@ -639,20 +556,17 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         player.bet = new_bet
                         room.total_bank += extra
 
-                        # Продление таймера
                         if room.timer < 5 and room.timer_extensions < MAX_TIMER_EXTENSIONS:
                             room.timer += TIMER_EXTENSION
                             room.timer_extensions += 1
                             await broadcast_to_room(room_id, {
                                 "type": "mp_timer_extended",
                                 "time": room.timer,
-                                "extensions": room.timer_extensions,
                             })
 
                         await broadcast_state(room_id)
-                        logger.info(f"⬆️ {user_id} raised bet by {extra}$ in {room_id}")
+                        logger.info(f"⬆️ {user_id} raised by {extra}$ in {room_id}")
 
-                    # --- LEAVE ROOM ---
                     elif action == "mp_leave_room":
                         if not user_id:
                             continue
@@ -673,8 +587,8 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                             if user_id in user_rooms:
                                 del user_rooms[user_id]
 
-                            if not [p for p in room.players.values() if p.user_id < 900000]:
-                                # Только боты остались — удаляем комнату
+                            real_players = [uid for uid in room.players if uid < 900000]
+                            if not real_players:
                                 if room.timer_task:
                                     room.timer_task.cancel()
                                 del rooms[room_id]
@@ -684,7 +598,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         current_room = None
                         await ws.send_json({"type": "mp_left_room"})
 
-                    # --- PING ---
                     elif action == "ping":
                         await ws.send_json({"type": "pong"})
 
@@ -697,7 +610,6 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
         logger.error(f"WS connection error: {e}")
 
     finally:
-        # Очистка при отключении
         if user_id and user_id in ws_connections:
             del ws_connections[user_id]
 
@@ -715,7 +627,8 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                 if user_id in user_rooms:
                     del user_rooms[user_id]
 
-                if not [p for p in room.players.values() if p.user_id < 900000]:
+                real_players = [uid for uid in room.players if uid < 900000]
+                if not real_players:
                     if room.timer_task:
                         room.timer_task.cancel()
                     if current_room in rooms:
@@ -728,45 +641,9 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
     return ws
 
 
-# ═══════════════════════════════════════
-# ОЧИСТКА СТАРЫХ КОМНАТ
-# ═══════════════════════════════════════
-
-
-async def cleanup_inactive_rooms():
-    """Периодическая очистка неактивных комнат"""
-    while True:
-        await asyncio.sleep(300)  # Каждые 5 минут
-        now = time.time()
-        inactive = []
-
-        for rid, room in rooms.items():
-            if now - room.last_activity > 600:  # 10 минут неактивности
-                inactive.append(rid)
-
-        for rid in inactive:
-            room = rooms.get(rid)
-            if room:
-                for uid, player in list(room.players.items()):
-                    if uid < 900000 and player.bet > 0:
-                        user = await get_user(uid)
-                        if user:
-                            await update_balance(uid, user["balance"] + player.bet)
-                if room.timer_task:
-                    room.timer_task.cancel()
-                del rooms[rid]
-                logger.info(f"🧹 Cleaned room {rid}")
-
-
-# ═══════════════════════════════════════
-# ЗАПУСК СЕРВЕРА
-# ═══════════════════════════════════════
-
-
 def create_app() -> web.Application:
     app = web.Application()
 
-    # CORS
     from aiohttp.web import middleware
 
     @middleware
@@ -778,20 +655,7 @@ def create_app() -> web.Application:
         return resp
 
     app.middlewares.append(cors)
-
     app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "server": "mp_server"}))
     app.router.add_get("/ws", handle_ws)
 
     return app
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(init_db())
-    loop.create_task(cleanup_inactive_rooms())
-
-    app = create_app()
-    logger.info(f"🚀 MP Server starting on port {PORT}")
-    web.run_app(app, host=HOST, port=PORT)
