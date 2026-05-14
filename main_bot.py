@@ -303,17 +303,71 @@ async def api_game_result(request: Request) -> Response:
     except Exception as e: logger.error(f"api_game_result: {e}"); return json_response({"success": False, "error": str(e)}, status=500)
 
 async def api_create_invoice(request: Request) -> Response:
+    """Создание счёта на пополнение через CryptoPay API"""
     try:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         amount = float(data.get("amount", 0))
-        if not user_id or amount <= 0: return json_response({"success": False, "error": "Invalid"}, status=400)
+        
+        if not user_id or amount <= 0:
+            return json_response({"success": False, "error": "Invalid parameters"}, status=400)
+        
+        user = await get_user(user_id)
+        if not user:
+            user = await create_user_if_not_exists(user_id)
+        
+        # Создаём инвойс через CryptoPay API
         payment_id = secrets.token_hex(16)
-        await sqlite_pool.execute("INSERT INTO crypto_payments (user_id, amount, payment_id, status, created_at) VALUES (?,?,?,'pending',strftime('%s','now'))", (user_id, amount, payment_id))
-        await sqlite_pool.commit()
-        crypto_url = f"https://t.me/CryptoBot?start=pay_{config.CRYPTO_PAY_TOKEN}_{payment_id}"
-        return json_response({"success": True, "payment_id": payment_id, "invoice_url": crypto_url, "amount": amount})
-    except Exception as e: return json_response({"success": False, "error": str(e)}, status=500)
+        
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Crypto-Pay-API-Token": config.CRYPTO_PAY_TOKEN,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "asset": "USDT",
+                "amount": str(amount),
+                "description": f"Пополнение баланса для user {user_id}",
+                "hidden_message": f"user_id:{user_id}",
+                "paid_btn_name": "callback",
+                "paid_btn_url": f"{config.API_URL}/api/crypto_callback?payment_id={payment_id}",
+                "allow_comments": False,
+                "allow_anonymous": False
+            }
+            
+            try:
+                async with session.post(f"{config.CRYPTO_PAY_API}/createInvoice", json=payload, headers=headers) as resp:
+                    result = await resp.json()
+                
+                if result.get("ok"):
+                    invoice = result["result"]
+                    
+                    # Сохраняем платёж
+                    await sqlite_pool.execute(
+                        "INSERT INTO crypto_payments (user_id, amount, payment_id, status, created_at) VALUES (?,?,?,'pending',strftime('%s','now'))",
+                        (user_id, amount, str(invoice["invoice_id"]))
+                    )
+                    await sqlite_pool.commit()
+                    
+                    logger.info(f"💳 Invoice created: user={user_id}, amount={amount}$, invoice_id={invoice['invoice_id']}")
+                    
+                    return json_response({
+                        "success": True,
+                        "payment_id": str(invoice["invoice_id"]),
+                        "invoice_url": invoice["pay_url"],
+                        "amount": amount
+                    })
+                else:
+                    logger.error(f"CryptoPay error: {result}")
+                    return json_response({"success": False, "error": "CryptoPay API error"}, status=500)
+                    
+            except Exception as e:
+                logger.error(f"CryptoPay request error: {e}")
+                return json_response({"success": False, "error": "Payment service unavailable"}, status=500)
+                
+    except Exception as e:
+        logger.error(f"create_invoice: {e}")
+        return json_response({"success": False, "error": str(e)}, status=500)
 
 async def api_check_payment(request: Request) -> Response:
     try:
