@@ -398,6 +398,7 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
          InlineKeyboardButton(text="➖ Списать", callback_data="admin_take")],
         [InlineKeyboardButton(text="👥 Список игроков", callback_data="admin_list")],
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
+        [InlineKeyboardButton(text="📩 Сообщения", callback_data="admin_messages")],
         [InlineKeyboardButton(text="🗑 Очистить БД", callback_data="admin_clear_db")]
     ])
 
@@ -604,6 +605,27 @@ async def admin_stats(callback: CallbackQuery):
     total_wins = (await c4.fetchone())["t"] or 0
     
     text = f"📊 *Статистика*\n\n👤 {total_users}\n🎮 {total_games}\n💵 Ставок: {total_bets:.2f}$\n🏆 Выигрышей: {total_wins:.2f}$\n📈 Профит: {(total_bets - total_wins):.2f}$"
+    await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+
+@admin_router.callback_query(F.data == "admin_messages")
+async def admin_messages(callback: CallbackQuery):
+    await callback.answer()
+    if callback.from_user.id not in config.ADMIN_IDS: return
+    
+    cursor = await sqlite_pool.execute(
+        "SELECT user_id, message, created_at FROM support_messages WHERE is_read=0 ORDER BY created_at DESC LIMIT 15"
+    )
+    msgs = await cursor.fetchall()
+    
+    if not msgs:
+        await callback.message.edit_text("📩 Нет новых сообщений", reply_markup=back_keyboard())
+        return
+    
+    text = "📩 *Непрочитанные сообщения:*\n\n"
+    for m in msgs:
+        date_str = datetime.fromtimestamp(m["created_at"]).strftime('%d.%m %H:%M')
+        text += f"👤 `{m['user_id']}` | {date_str}\n{m['message'][:100]}\n💡 `/reply {m['user_id']} ответ`\n\n"
+    
     await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
 
 # ОЧИСТКА БД

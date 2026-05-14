@@ -296,9 +296,30 @@
         async function api(endpoint, data={}) { try { const r = await fetch(`${API}${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:user.id,...data}) }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); } return await r.json(); } catch(e) { toast('Ошибка: '+e.message); throw e; } }
 
         async function loadUser() { try { const d = await api('/api/get_balance'); if (d.success) { state.balance = d.balance||0; state.freeSpins = d.free_spins||0; state.totalGames = d.total_games||0; state.wins = d.wins||0; state.gamesSinceWithdrawal = d.games_since_withdrawal||0; updateUI(); } hideLoading(); } catch(e) { console.error('Load error:', e); showError('Не удалось загрузить данные.<br>Проверьте соединение.'); } }
+        
+                // Welcome для новых пользователей
+        if(!localStorage.getItem('welcomeShown')) {
+            localStorage.setItem('welcomeShown', '1');
+            setTimeout(function() {
+                showCenterBanner('👋 Добро пожаловать!<br><span style="font-size:14px;">Выберите ставку и нажмите на колесо</span>', 'win');
+            }, 1000);
+        }
+
+        // Восстановление последней ставки
+        var savedBet = localStorage.getItem('lastBet');
+        var savedAmount = localStorage.getItem('lastBetAmount');
+        if(savedBet) {
+            state.selectedBet = savedBet;
+            var btn = document.querySelector('.bet-option[data-bet="'+savedBet+'"]');
+            if(btn) btn.classList.add('selected');
+        }
+        if(savedAmount) $('#betAmount').value = savedAmount;
 
         function updateUI() {
             $('#balanceDisplay').textContent = state.balance.toFixed(2)+'$';
+            // Сохраняем последнюю ставку
+            if(state.selectedBet) localStorage.setItem('lastBet', state.selectedBet);
+            localStorage.setItem('lastBetAmount', $('#betAmount').value);
             $('#freeSpinCount').textContent = state.freeSpins;
             $('#profileBalance').textContent = state.balance.toFixed(2)+'$';
             $('#profileSpins').textContent = state.freeSpins;
@@ -339,7 +360,7 @@
             $$('.tab-content').forEach(function(x){x.classList.remove('active')});
             var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');
             if(b.dataset.tab==='multiplayer'){connectWS();switchMPTab('lobby');setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}
-            if(b.dataset.tab==='profile'){updateUI();}
+            if(b.dataset.tab==='profile'){loadUser();}
             vibrate();
         });});
 
@@ -363,7 +384,12 @@
         // ═══════════════════════════════════════
         // SPIN
         // ═══════════════════════════════════════
-        $('#wheelClickArea').addEventListener('click', async function(){
+        // Spin (с защитой от двойного клика)
+            var lastSpinTime = 0;
+            $('#wheelClickArea').addEventListener('click', async function(){
+            var now = Date.now();
+            if(now - lastSpinTime < 800) return; // debounce 800мс
+            lastSpinTime = now;
             if(state.isSpinning)return;
             if(!state.selectedBet){showCenterBanner('❌ Сделайте ставку!','lose');return;}
             var useFree=$('#freeSpinToggle').classList.contains('checked');
