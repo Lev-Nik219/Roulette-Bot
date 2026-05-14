@@ -902,6 +902,11 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                     elif action == "mp_get_rooms":
                         rooms_list = [{"room_id":rid,"players_count":len(r["players"]),"bank":r["bank"],"timer":r["timer"]} for rid,r in mp_rooms.items() if r["status"]=="waiting"]
                         await ws.send_json({"type":"mp_rooms_list","rooms":rooms_list})
+                        rooms_list = [{
+                        "room_id":rid, "name": f"Комната #{rid[:6]}",
+                        "players_count":len(r["players"]), "bank":r["bank"], "timer":r["timer"],
+                        "top_bet": max(p["bet"] for p in r["players"].values()) if r["players"] else 0
+                    } for rid,r in mp_rooms.items() if r["status"]=="waiting"]
                     elif action == "mp_create_room":
                         user_id = int(data.get("user_id", 0)); amount = float(data.get("amount", 0))
                         nickname = str(data.get("nickname", f"P{user_id}"))[:15]; avatar = data.get("avatar", "🎲")

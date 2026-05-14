@@ -20,22 +20,11 @@
         @keyframes wheelGlow{0%,100%{box-shadow:0 0 30px rgba(247,151,30,0.3)}50%{box-shadow:0 0 50px rgba(247,151,30,0.5)}}
         @keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
         @keyframes ballJump{0%,100%{margin-top:-124px}25%{margin-top:-120px}50%{margin-top:-128px}75%{margin-top:-122px}}
-        @keyframes winGlow{0%{box-shadow:0 0 30px rgba(255,215,0,0.3)}50%{box-shadow:0 0 80px rgba(255,215,0,0.8),0 0 120px rgba(255,215,0,0.4)}100%{box-shadow:0 0 30px rgba(255,215,0,0.3)}}
-        @keyframes winPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        @keyframes winGlow{0%{box-shadow:0 0 30px rgba(255,215,0,0.3)}50%{box-shadow:0 0 80px rgba(255,215,0,0.8)}100%{box-shadow:0 0 30px rgba(255,215,0,0.3)}}
+        @keyframes slideUp{0%{transform:translateY(20px);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes countDown{0%{transform:scale(1.3);color:#ff4444}100%{transform:scale(1);color:#f7971e}}
 
-        body{
-            background:linear-gradient(135deg,#0a1a0a,#0d1f0d 30%,#0a1a0a 60%,#0d1f0d 100%);
-            background-size:400% 400%;
-            animation:bgPulse 15s ease infinite;
-            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-            color:white;
-            min-height:100vh;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            overflow-x:hidden;
-            touch-action:pan-y
-        }
+        body{background:linear-gradient(135deg,#0a1a0a,#0d1f0d 30%,#0a1a0a 60%,#0d1f0d 100%);background-size:400% 400%;animation:bgPulse 15s ease infinite;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:white;min-height:100vh;display:flex;justify-content:center;align-items:center;overflow-x:hidden;touch-action:pan-y}
         body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 20%,rgba(76,175,80,0.06) 0%,transparent 60%),radial-gradient(ellipse at 70% 60%,rgba(247,151,30,0.05) 0%,transparent 50%);pointer-events:none;z-index:0}
         #particleCanvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
         .app-container{width:100%;max-width:500px;margin:0 auto;padding:16px;min-height:100vh;position:relative;z-index:1}
@@ -53,30 +42,44 @@
         .tab-content.active{display:block;animation:tabSlideIn 0.5s ease}
         .game-area{background:rgba(0,0,0,0.3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:24px;padding:20px;margin-bottom:16px;text-align:center;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 40px rgba(0,0,0,0.5)}
 
-        /* КОЛЕСО */
         .roulette-wheel-container{position:relative;width:280px;height:280px;margin:20px auto;cursor:pointer;border-radius:50%;box-shadow:0 0 40px rgba(255,215,0,0.4),0 0 80px rgba(255,215,0,0.2),0 0 120px rgba(255,215,0,0.1)}
-        .roulette-wheel-container.win-anim{animation:winGlow 1s ease-in-out 3,winPulse 0.5s ease-in-out 3}
-        .roulette-wheel-container:active{transform:scale(0.98)}
+        .roulette-wheel-container.win-anim{animation:winGlow 1s ease-in-out 3}
         .roulette-outer{width:280px;height:280px;border-radius:50%;border:6px solid #5d4037;background:transparent;position:relative;overflow:visible}
         .roulette-ring{position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:1}
-        /* Цифры внутри кольца — вращаются вместе с ним */
         .roulette-ball{position:absolute;width:14px;height:14px;background:radial-gradient(circle at 40% 40%,#fff,#ccc);border-radius:50%;top:50%;left:50%;margin-left:-7px;margin-top:-124px;box-shadow:0 0 12px rgba(255,255,255,0.8);transition:all 5s cubic-bezier(0.17,0.89,0.32,1.25);z-index:5;animation:ballJump 0.3s ease-in-out infinite}
         .roulette-ball.stopped{animation:none}
         .roulette-center{position:absolute;top:50%;left:50%;width:40px;height:40px;margin-left:-20px;margin-top:-20px;background:radial-gradient(circle,#a08060,#6d4c30);border-radius:50%;border:3px solid #4a3020;z-index:4}
         .roulette-result-num{font-size:44px;font-weight:800;min-height:55px;margin:6px 0}
 
-        /* MP КОЛЕСО */
-        .mp-wheel-container{position:relative;width:260px;height:260px;margin:16px auto}
-        .mp-wheel-ring{width:260px;height:260px;border-radius:50%;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);border:4px solid #5d4037;box-shadow:0 0 40px rgba(255,215,0,0.4),0 0 80px rgba(255,215,0,0.2);position:relative;overflow:hidden}
-        .mp-wheel-marker{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ffd700;z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6))}
-        .mp-wheel-center{position:absolute;top:50%;left:50%;width:50px;height:50px;margin-left:-25px;margin-top:-25px;background:radial-gradient(circle,#ffd700,#b8960f);border-radius:50%;border:3px solid #3a2a10;z-index:3;display:flex;align-items:center;justify-content:center;font-size:22px}
-        .mp-timer{font-size:28px;font-weight:800;color:#f7971e;animation:pulse 1s ease-in-out infinite}
-        .mp-bank{font-size:16px;color:#4CAF50;font-weight:700}
-        .mp-leaderboard{text-align:left;max-height:200px;overflow-y:auto;margin-top:8px}
-        .mp-player-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:4px;font-size:13px}
-        .mp-player-avatar{font-size:20px;margin-right:6px}
-        .mp-player-color{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
-        .mp-bet-input{flex:1;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:white;font-size:16px;text-align:center;outline:none}
+        /* MP */
+        .mp-room-card{background:linear-gradient(135deg,rgba(30,50,30,0.9),rgba(20,35,20,0.9));border:1px solid rgba(255,215,0,0.15);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden}
+        .mp-room-card:hover{border-color:rgba(255,215,0,0.4);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+        .mp-room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4CAF50,#ffd700);opacity:0;transition:opacity 0.3s}
+        .mp-room-card:hover::before{opacity:1}
+        .mp-room-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .mp-room-title{font-weight:700;font-size:16px;color:#ffd700}
+        .mp-room-timer{font-size:13px;color:#f7971e;font-weight:600;animation:pulse 1s ease-in-out infinite}
+        .mp-room-info{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:0.7}
+        .mp-room-top-bet{color:#4CAF50;font-weight:600}
+        .mp-room-players{display:flex;align-items:center;gap:4px}
+        .mp-live-wheel{width:200px;height:200px;border-radius:50%;margin:16px auto;transition:transform 5s cubic-bezier(0.17,0.89,0.32,1.25);border:4px solid #5d4037;box-shadow:0 0 30px rgba(255,215,0,0.3),0 0 60px rgba(0,0,0,0.5)}
+        .mp-live-marker{width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:18px solid #ffd700;margin:0 auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6))}
+        .mp-bet-bar{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.3);border-radius:14px;padding:8px 14px;margin:10px 0}
+        .mp-bet-input{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:white;font-size:15px;text-align:center;outline:none}
+        .mp-bet-btn{padding:10px 20px;border-radius:12px;border:none;font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(180deg,#f7971e,#e65100);color:white;box-shadow:0 4px 15px rgba(247,151,30,0.3);transition:all 0.2s}
+        .mp-bet-btn:active{transform:scale(0.95)}
+        .mp-bet-btn:disabled{opacity:0.5;transform:none}
+        .mp-leaderboard{max-height:250px;overflow-y:auto;margin-top:10px}
+        .mp-player-card{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:12px;margin-bottom:6px;border:1px solid rgba(255,255,255,0.04);transition:all 0.3s;animation:slideUp 0.3s ease}
+        .mp-player-card.lead{border-color:rgba(255,215,0,0.3);background:rgba(255,215,0,0.05)}
+        .mp-player-card.me{border-color:rgba(76,175,80,0.4);background:rgba(76,175,80,0.08)}
+        .mp-player-left{display:flex;align-items:center;gap:8px}
+        .mp-player-avatar{font-size:22px}
+        .mp-player-name{font-size:13px;font-weight:600}
+        .mp-player-bet{font-size:14px;font-weight:700;color:#4CAF50}
+        .mp-player-pct{font-size:11px;opacity:0.5}
+        .mp-timer-big{font-size:36px;font-weight:900;color:#f7971e;text-align:center;animation:countDown 1s ease-in-out infinite}
+        .mp-bank-display{text-align:center;font-size:20px;font-weight:700;color:#ffd700;margin:8px 0}
 
         .bet-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:16px 0}
         .bet-option{background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.1);color:white;padding:10px 14px;border-radius:25px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.3s;min-width:70px}
@@ -111,93 +114,76 @@
         .modal-overlay.active{display:flex}
         .modal{background:linear-gradient(160deg,rgba(25,40,25,0.95),rgba(15,25,15,0.95));border-radius:28px;padding:28px;width:100%;max-width:400px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 30px 80px rgba(0,0,0,0.6);animation:popIn 0.3s ease}
         .profile-buttons{display:flex;flex-direction:column;gap:8px;margin-top:16px}
-        @media(max-width:380px){.roulette-wheel-container,.mp-wheel-container{width:220px;height:220px}.roulette-outer,.mp-wheel-ring{width:220px;height:220px}}
+        @media(max-width:380px){.roulette-wheel-container{width:220px;height:220px}.roulette-outer{width:220px;height:220px}.mp-live-wheel{width:160px;height:160px}}
     </style>
 </head>
 <body>
     <canvas id="particleCanvas"></canvas>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <div style="font-size:14px;opacity:0.7;margin-top:12px;">Загрузка...</div>
-    </div>
-
+    <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div style="font-size:14px;opacity:0.7;margin-top:12px;">Загрузка...</div></div>
     <div class="app-container">
-        <div class="header">
-            <div><div style="font-size:18px;font-weight:800;">🎡 ROULETTE</div><div style="font-size:12px;opacity:0.5;">European Casino</div></div>
-            <div class="balance" id="balanceCard"><span class="balance-icon">💰</span><span class="balance-amount" id="balanceDisplay">0.00$</span></div>
-        </div>
-
+        <div class="header"><div><div style="font-size:18px;font-weight:800;">🎡 ROULETTE</div><div style="font-size:12px;opacity:0.5;">European Casino</div></div><div class="balance" id="balanceCard"><span class="balance-icon">💰</span><span class="balance-amount" id="balanceDisplay">0.00$</span></div></div>
         <div class="tab-nav">
             <button class="tab-btn active" data-tab="single">🎡 Рулетка</button>
             <button class="tab-btn" data-tab="multiplayer">👥 Мультиплеер</button>
             <button class="tab-btn" data-tab="profile">👤 Профиль</button>
         </div>
 
+        <!-- SINGLE GAME -->
         <div class="tab-content active" id="tab-single">
             <div class="game-area">
-                <div class="roulette-wheel-container" id="wheelClickArea">
-                    <div class="roulette-outer">
-                        <div class="roulette-ring" id="rouletteRing"></div>
-                        <div class="roulette-ball" id="rouletteBall"></div>
-                        <div class="roulette-center"></div>
-                    </div>
-                </div>
-                <div class="roulette-result-num" id="resultNum"></div>
-                <div style="font-size:13px;opacity:0.6;" id="resultText">Выберите ставку и нажмите на колесо</div>
+                <div class="roulette-wheel-container" id="wheelClickArea"><div class="roulette-outer"><div class="roulette-ring" id="rouletteRing"></div><div class="roulette-ball" id="rouletteBall"></div><div class="roulette-center"></div></div></div>
+                <div class="roulette-result-num" id="resultNum"></div><div style="font-size:13px;opacity:0.6;" id="resultText">Выберите ставку и нажмите на колесо</div>
             </div>
             <div class="game-area">
                 <div style="font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">Выберите ставку</div>
                 <div class="bet-buttons" id="betGrid">
-                    <button class="bet-option" data-bet="red">🔴 Красное ×2</button>
-                    <button class="bet-option" data-bet="black">⚫ Чёрное ×2</button>
-                    <button class="bet-option" data-bet="even">🔵 Чёт ×2</button>
-                    <button class="bet-option" data-bet="odd">🟣 Нечет ×2</button>
-                    <button class="bet-option" data-bet="zero">🟢 ZERO ×36</button>
-                    <button class="bet-option" data-bet="number" id="numberBetBtn">🔢 Число ×36</button>
+                    <button class="bet-option" data-bet="red">🔴 Красное ×2</button><button class="bet-option" data-bet="black">⚫ Чёрное ×2</button>
+                    <button class="bet-option" data-bet="even">🔵 Чёт ×2</button><button class="bet-option" data-bet="odd">🟣 Нечет ×2</button>
+                    <button class="bet-option" data-bet="zero">🟢 ZERO ×36</button><button class="bet-option" data-bet="number" id="numberBetBtn">🔢 Число ×36</button>
                 </div>
                 <input type="number" id="numberBetInput" value="17" min="0" max="36" placeholder="Число 0-36" style="display:none;margin-top:5px;">
-                <input type="number" id="betAmount" value="1" min="0.1" step="0.1" placeholder="Сумма ставки">
-                <div style="display:flex;gap:5px;margin-bottom:8px;">
-                    <button class="bet-option" style="flex:1;font-size:11px;" data-quick="0.5">0.5$</button>
-                    <button class="bet-option" style="flex:1;font-size:11px;" data-quick="1">1$</button>
-                    <button class="bet-option" style="flex:1;font-size:11px;" data-quick="5">5$</button>
-                    <button class="bet-option" style="flex:1;font-size:11px;" data-quick="10">10$</button>
-                </div>
+                <input type="number" id="betAmount" value="" min="0.1" step="0.1" placeholder="Сумма ставки ($)">
+                <div style="display:flex;gap:5px;margin-bottom:8px;"><button class="bet-option" style="flex:1;font-size:11px;" data-quick="0.5">0.5$</button><button class="bet-option" style="flex:1;font-size:11px;" data-quick="1">1$</button><button class="bet-option" style="flex:1;font-size:11px;" data-quick="5">5$</button><button class="bet-option" style="flex:1;font-size:11px;" data-quick="10">10$</button></div>
                 <div class="free-spin-card" id="freeSpinToggle"><span>🎁 Бесплатный спин</span><span class="free-spin-badge" id="freeSpinCount">0</span></div>
             </div>
         </div>
 
+        <!-- MULTIPLAYER -->
         <div class="tab-content" id="tab-multiplayer">
-            <div class="game-area" id="mpLobbyArea">
-                <div style="font-size:20px;font-weight:800;margin-bottom:10px;">👥 МУЛЬТИПЛЕЕР</div>
-                <input type="number" class="mp-bet-input" id="mpBetInput" value="1" min="1" placeholder="Сумма ставки ($)">
-                <button class="action-btn gold" id="mpCreateRoomBtn">🎯 СОЗДАТЬ КОМНАТУ</button>
-                <div style="margin-top:16px;font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;">Активные комнаты</div>
-                <div id="mpRoomsList"><div class="loading-spinner"></div></div>
-            </div>
-            <div class="game-area hidden" id="mpRoomArea">
-                <div style="font-size:20px;font-weight:800;margin-bottom:4px;">👥 КОМНАТА #<span id="mpRoomId">---</span></div>
-                <div class="mp-timer" id="mpRoomTimer">30</div>
-                <div class="mp-bank">Банк: <span id="mpRoomBank">0.00</span>$</div>
-                <div class="mp-wheel-container">
-                    <div class="mp-wheel-marker"></div>
-                    <div class="mp-wheel-ring" id="mpWheelRing"></div>
-                    <div class="mp-wheel-center">🎯</div>
+            <div id="mpLobby">
+                <div class="game-area" style="padding:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div style="font-size:18px;font-weight:800;">👥 БИТВА СТАВОК</div>
+                        <button class="action-btn gold" style="width:auto;padding:10px 16px;font-size:13px;" id="mpCreateRoomBtn">➕ Создать</button>
+                    </div>
+                    <div id="mpRoomsList"><div class="loading-spinner"></div></div>
                 </div>
-                <button class="action-btn green hidden" id="mpRaiseBetBtn">⬆️ Повысить ставку</button>
-                <button class="action-btn ghost" id="mpLeaveRoomBtn" style="color:#ff6b6b;">🚪 Выйти</button>
-                <div style="font-size:12px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin-top:10px;">Лидерборд</div>
-                <div class="mp-leaderboard" id="mpLeaderboard"><div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div></div>
-                <button class="action-btn gold hidden" id="mpClaimBtn">🏆 Забрать выигрыш</button>
+            </div>
+            <div id="mpRoom" class="hidden">
+                <div class="game-area" style="padding:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-weight:700;color:#ffd700;">КОМНАТА <span id="mpRoomId">---</span></div>
+                        <button class="action-btn ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="mpLeaveBtn">🚪 Выйти</button>
+                    </div>
+                    <div class="mp-timer-big" id="mpTimerBig">30</div>
+                    <div class="mp-bank-display">Банк: <span id="mpBankDisplay">0.00</span>$</div>
+                    <div class="mp-live-wheel" id="mpLiveWheel" style="background:#1a1a1a;"></div>
+                    <div class="mp-live-marker"></div>
+                    <div class="mp-bet-bar">
+                        <input type="number" class="mp-bet-input" id="mpBetAmount" value="" min="0.1" placeholder="Сумма ($)">
+                        <button class="mp-bet-btn" id="mpPlaceBetBtn">💰 Ставка</button>
+                    </div>
+                    <button class="action-btn green hidden" id="mpRaiseBtn">⬆️ Повысить ставку</button>
+                    <div style="font-size:11px;opacity:0.5;text-transform:uppercase;letter-spacing:2px;margin:12px 0 6px;">🏆 Лидерборд</div>
+                    <div class="mp-leaderboard" id="mpLeaderboardLive"></div>
+                    <button class="action-btn gold hidden" id="mpClaimBtn">🏆 Забрать выигрыш</button>
+                </div>
             </div>
         </div>
 
+        <!-- PROFILE -->
         <div class="tab-content" id="tab-profile">
-            <div class="game-area">
-                <div style="font-size:60px;animation:float 3s ease-in-out infinite;">👤</div>
-                <div style="font-size:18px;font-weight:700;margin-top:8px;" id="profileName">Игрок</div>
-                <div style="font-size:12px;opacity:0.5;margin-top:4px;">ID: <span id="profileId">---</span></div>
-            </div>
+            <div class="game-area"><div style="font-size:60px;animation:float 3s ease-in-out infinite;">👤</div><div style="font-size:18px;font-weight:700;margin-top:8px;" id="profileName">Игрок</div><div style="font-size:12px;opacity:0.5;margin-top:4px;">ID: <span id="profileId">---</span></div></div>
             <div class="game-area">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:11px;opacity:0.5;">Баланс</div><div style="font-size:20px;font-weight:800;color:#ffd700;" id="profileBalance">0.00$</div></div>
@@ -205,367 +191,115 @@
                     <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:11px;opacity:0.5;">Игр</div><div style="font-size:20px;font-weight:800;" id="profileGames">0</div></div>
                     <div style="background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:11px;opacity:0.5;">Побед</div><div style="font-size:20px;font-weight:800;color:#4CAF50;" id="profileWins">0</div></div>
                 </div>
-                <div class="profile-buttons">
-                    <button class="action-btn gold" id="profileDepositBtn">💳 Пополнить</button>
-                    <button class="action-btn green" id="profileWithdrawBtn">💸 Вывести</button>
-                </div>
+                <div class="profile-buttons"><button class="action-btn gold" id="profileDepositBtn">💳 Пополнить</button><button class="action-btn green" id="profileWithdrawBtn">💸 Вывести</button></div>
             </div>
         </div>
         <div class="center-banner" id="centerBanner"></div>
     </div>
 
-    <div class="modal-overlay" id="depositModal">
-        <div class="modal">
-            <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💳 Пополнение</div>
-            <input type="number" id="depositAmount" value="10" min="1" placeholder="Сумма ($)">
-            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:12px;">Оплата через CryptoBot (USDT)</p>
-            <button class="action-btn gold" id="depositConfirmBtn">Оплатить</button>
-            <p style="font-size:11px;opacity:0.4;text-align:center;margin-top:8px;" id="depositStatus"></p>
-            <button class="action-btn ghost" id="depositCloseBtn">Закрыть</button>
-        </div>
-    </div>
-    <div class="modal-overlay" id="withdrawModal">
-        <div class="modal">
-            <div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💸 Вывод</div>
-            <p style="font-size:13px;opacity:0.7;text-align:center;">Доступно: <span id="withdrawAvailable" style="color:#4CAF50;">0.00$</span></p>
-            <p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:8px;">Мин. 2 игры. Сыграно: <span id="withdrawGames">0</span></p>
-            <input type="number" id="withdrawAmount" placeholder="Сумма">
-            <input type="text" id="withdrawWallet" placeholder="USDT адрес или @username">
-            <button class="action-btn green" id="withdrawConfirmBtn">Вывести</button>
-            <button class="action-btn ghost" id="withdrawCloseBtn">Закрыть</button>
-        </div>
-    </div>
+    <div class="modal-overlay" id="depositModal"><div class="modal"><div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💳 Пополнение</div><input type="number" id="depositAmount" value="10" min="1" placeholder="Сумма ($)"><p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:12px;">Оплата через CryptoBot (USDT)</p><button class="action-btn gold" id="depositConfirmBtn">Оплатить</button><p style="font-size:11px;opacity:0.4;text-align:center;margin-top:8px;" id="depositStatus"></p><button class="action-btn ghost" id="depositCloseBtn">Закрыть</button></div></div>
+    <div class="modal-overlay" id="withdrawModal"><div class="modal"><div style="font-size:20px;font-weight:800;margin-bottom:16px;text-align:center;">💸 Вывод</div><p style="font-size:13px;opacity:0.7;text-align:center;">Доступно: <span id="withdrawAvailable" style="color:#4CAF50;">0.00$</span></p><p style="font-size:11px;opacity:0.5;text-align:center;margin-bottom:8px;">Мин. 2 игры. Сыграно: <span id="withdrawGames">0</span></p><input type="number" id="withdrawAmount" placeholder="Сумма"><input type="text" id="withdrawWallet" placeholder="USDT адрес или @username"><button class="action-btn green" id="withdrawConfirmBtn">Вывести</button><button class="action-btn ghost" id="withdrawCloseBtn">Закрыть</button></div></div>
 
     <script>
-        // ═══════════════════════════════════════
-        // GLOBALS
-        // ═══════════════════════════════════════
-        const tg = window.Telegram?.WebApp;
-        let user = null;
+        const tg=window.Telegram?.WebApp;let user=null;
+        if(tg){tg.ready();tg.expand();if(tg.initDataUnsafe?.user){user={id:tg.initDataUnsafe.user.id,username:tg.initDataUnsafe.user.username||tg.initDataUnsafe.user.first_name||'Player',firstName:tg.initDataUnsafe.user.first_name||'Player'}}}
+        if(!user){const p=new URLSearchParams(window.location.search);const uid=p.get('user_id');if(uid){user={id:parseInt(uid),username:'player',firstName:'Player'}}else{user={id:1167503795,username:'test',firstName:'Tester'}}}
+        const API='https://roulette-bot-8i8t.onrender.com',WS_URL=API.replace('https','wss').replace('http','ws');
+        let state={balance:0,freeSpins:0,totalGames:0,wins:0,selectedBet:null,isSpinning:false,gamesSinceWithdrawal:0};
+        let ws=null,wheelRotation=0,wsReconnectDelay=1000,mpWheelRotation=0;
+        let mpCurrentRoom=null,mpMyBet=0,mpIsInRoom=false;
+        let audioCtx=null,pendingPaymentId=null,paymentCheckInterval=null;
+        const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 
-        if (tg) { tg.ready(); tg.expand();
-            if (tg.initDataUnsafe?.user) { user = { id: tg.initDataUnsafe.user.id, username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player', firstName: tg.initDataUnsafe.user.first_name || 'Player' }; }
-        }
-        if (!user) { const p = new URLSearchParams(window.location.search); const uid = p.get('user_id');
-            if (uid) { user = { id: parseInt(uid), username: 'player', firstName: 'Player' }; }
-            else { user = { id: 1167503795, username: 'test', firstName: 'Tester' }; }
-        }
-
-        const API = 'https://roulette-bot-8i8t.onrender.com';
-        const WS_URL = API.replace('https','wss').replace('http','ws');
-        let state = { balance:0, freeSpins:0, totalGames:0, wins:0, selectedBet:null, isSpinning:false, gamesSinceWithdrawal:0 };
-        let ws = null, wheelRotation = 0, wsReconnectDelay = 1000;
-        let mpState = { players:[], bank:0, timer:30, myBet:0, roundActive:false };
-        let audioCtx = null, pendingPaymentId = null, paymentCheckInterval = null;
-        const $ = s => document.querySelector(s);
-        const $$ = s => document.querySelectorAll(s);
-
-        // ═══════════════════════════════════════
-        // LOADING & ERRORS
-        // ═══════════════════════════════════════
-        function showError(msg) { const o = $('#loadingOverlay'); o.innerHTML = '<div style="font-size:40px;margin-bottom:10px;">⚠️</div><div class="error-text">'+msg+'</div><button class="retry-btn" onclick="location.reload()">🔄 Перезагрузить</button>'; }
-        function hideLoading() { const el = $('#loadingOverlay'); if(el && el.querySelector('.loading-spinner')) { el.style.opacity='0'; el.style.transition='opacity 0.5s'; setTimeout(function(){el.remove();},500); } }
-
-        // ═══════════════════════════════════════
-        // AUDIO (с защитой от ошибок)
-        // ═══════════════════════════════════════
-        function getAudioContext() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; } catch(e) { return null; } }
-        document.addEventListener('touchstart', function() { getAudioContext(); }, { once: true });
-        document.addEventListener('click', function() { getAudioContext(); }, { once: true });
-
+        function showError(msg){const o=$('#loadingOverlay');o.innerHTML='<div style="font-size:40px;margin-bottom:10px;">⚠️</div><div class="error-text">'+msg+'</div><button class="retry-btn" onclick="location.reload()">🔄 Перезагрузить</button>'}
+        function hideLoading(){const el=$('#loadingOverlay');if(el&&el.querySelector('.loading-spinner')){el.style.opacity='0';el.style.transition='opacity 0.5s';setTimeout(function(){el.remove()},500)}}
+        function getAudioContext(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}catch(e){return null}}
+        document.addEventListener('touchstart',function(){getAudioContext()},{once:true});document.addEventListener('click',function(){getAudioContext()},{once:true});
         function playSpinSound(){try{const a=getAudioContext();if(!a)return;const d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
         function playWinSound(){try{const a=getAudioContext();if(!a)return;[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
         function playLoseSound(){try{const a=getAudioContext();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
         function playJoinSound(){try{const a=getAudioContext();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(660,a.currentTime);o.frequency.linearRampToValueAtTime(880,a.currentTime+0.15);g.gain.setValueAtTime(0.05,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.2);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.2)}catch(e){}}
         function spawnConfetti(){try{var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}catch(e){}}
+        const canvas=$('#particleCanvas');const ctx=canvas.getContext('2d');let particles=[];function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}resizeCanvas();window.addEventListener('resize',resizeCanvas);
+        class Particle{constructor(){this.reset()}reset(){this.x=Math.random()*canvas.width;this.y=canvas.height+10;this.size=1+Math.random()*2.5;this.speed=0.2+Math.random()*0.8;this.opacity=0.1+Math.random()*0.3;this.color=Math.random()<0.5?'#ffd700':(Math.random()<0.5?'#4CAF50':'#f7971e');this.wobble=Math.random()*Math.PI*2}update(){this.y-=this.speed;this.x+=Math.sin(this.wobble)*0.2;this.wobble+=0.02;if(this.y<-10)this.reset()}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fillStyle=this.color;ctx.globalAlpha=this.opacity;ctx.fill();ctx.globalAlpha=1}}
+        for(let i=0;i<50;i++){const p=new Particle();p.y=Math.random()*canvas.height;particles.push(p)}function animateParticles(){ctx.clearRect(0,0,canvas.width,canvas.height);particles.forEach(p=>{p.update();p.draw()});requestAnimationFrame(animateParticles)}animateParticles();
 
-        // ═══════════════════════════════════════
-        // PARTICLES
-        // ═══════════════════════════════════════
-        const canvas = $('#particleCanvas'); const ctx = canvas.getContext('2d'); let particles = [];
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
-        class Particle { constructor() { this.reset(); } reset() { this.x=Math.random()*canvas.width; this.y=canvas.height+10; this.size=1+Math.random()*2.5; this.speed=0.2+Math.random()*0.8; this.opacity=0.1+Math.random()*0.3; this.color=Math.random()<0.5?'#ffd700':(Math.random()<0.5?'#4CAF50':'#f7971e'); this.wobble=Math.random()*Math.PI*2; } update() { this.y-=this.speed; this.x+=Math.sin(this.wobble)*0.2; this.wobble+=0.02; if(this.y<-10)this.reset(); } draw() { ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fillStyle=this.color; ctx.globalAlpha=this.opacity; ctx.fill(); ctx.globalAlpha=1; } }
-        for(let i=0;i<50;i++){const p=new Particle();p.y=Math.random()*canvas.height;particles.push(p);}
-        function animateParticles(){ctx.clearRect(0,0,canvas.width,canvas.height);particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animateParticles);}
-        animateParticles();
+        async function api(endpoint,data={}){try{const r=await fetch(`${API}${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,...data})});if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||`HTTP ${r.status}`)}return await r.json()}catch(e){toast('Ошибка: '+e.message);throw e}}
+        async function loadUser(){try{const d=await api('/api/get_balance');if(d.success){state.balance=d.balance||0;state.freeSpins=d.free_spins||0;state.totalGames=d.total_games||0;state.wins=d.wins||0;state.gamesSinceWithdrawal=d.games_since_withdrawal||0;updateUI()}hideLoading()}catch(e){showError('Не удалось загрузить данные')}}
+        function updateUI(){$('#balanceDisplay').textContent=state.balance.toFixed(2)+'$';if(state.selectedBet)localStorage.setItem('lastBet',state.selectedBet);localStorage.setItem('lastBetAmount',$('#betAmount').value);$('#freeSpinCount').textContent=state.freeSpins;$('#profileBalance').textContent=state.balance.toFixed(2)+'$';$('#profileSpins').textContent=state.freeSpins;$('#profileGames').textContent=state.totalGames;$('#profileWins').textContent=state.wins;$('#profileName').textContent=user.firstName||'Игрок';$('#profileId').textContent=user.id;$('#withdrawAvailable').textContent=state.balance.toFixed(2)+'$';$('#withdrawGames').textContent=state.gamesSinceWithdrawal}
+        function toast(msg){const e=document.querySelector('.toast');if(e)e.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000)}
+        function vibrate(ms){ms=ms||12;if(navigator.vibrate)navigator.vibrate(ms)}
+        function showCenterBanner(text,type){var b=$('#centerBanner');b.innerHTML=text;b.className='center-banner '+type+' show';clearTimeout(b._timeout);b._timeout=setTimeout(function(){b.className='center-banner '+type},2200)}
 
-        // ═══════════════════════════════════════
-        // API
-        // ═══════════════════════════════════════
-        async function api(endpoint, data={}) { try { const r = await fetch(`${API}${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:user.id,...data}) }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); } return await r.json(); } catch(e) { toast('Ошибка: '+e.message); throw e; } }
-
-        async function loadUser() { try { const d = await api('/api/get_balance'); if (d.success) { state.balance = d.balance||0; state.freeSpins = d.free_spins||0; state.totalGames = d.total_games||0; state.wins = d.wins||0; state.gamesSinceWithdrawal = d.games_since_withdrawal||0; updateUI(); } hideLoading(); } catch(e) { console.error('Load error:', e); showError('Не удалось загрузить данные.<br>Проверьте соединение.'); } }
-        
-                // Welcome для новых пользователей
-        if(!localStorage.getItem('welcomeShown')) {
-            localStorage.setItem('welcomeShown', '1');
-            setTimeout(function() {
-                showCenterBanner('👋 Добро пожаловать!<br><span style="font-size:14px;">Выберите ставку и нажмите на колесо</span>', 'win');
-            }, 1000);
-        }
-
-        // Восстановление последней ставки
-        var savedBet = localStorage.getItem('lastBet');
-        var savedAmount = localStorage.getItem('lastBetAmount');
-        if(savedBet) {
-            state.selectedBet = savedBet;
-            var btn = document.querySelector('.bet-option[data-bet="'+savedBet+'"]');
-            if(btn) btn.classList.add('selected');
-        }
-        if(savedAmount) $('#betAmount').value = savedAmount;
-
-        function updateUI() {
-            $('#balanceDisplay').textContent = state.balance.toFixed(2)+'$';
-            // Сохраняем последнюю ставку
-            if(state.selectedBet) localStorage.setItem('lastBet', state.selectedBet);
-            localStorage.setItem('lastBetAmount', $('#betAmount').value);
-            $('#freeSpinCount').textContent = state.freeSpins;
-            $('#profileBalance').textContent = state.balance.toFixed(2)+'$';
-            $('#profileSpins').textContent = state.freeSpins;
-            $('#profileGames').textContent = state.totalGames;
-            $('#profileWins').textContent = state.wins;
-            $('#profileName').textContent = user.firstName||'Игрок';
-            $('#profileId').textContent = user.id;
-            $('#withdrawAvailable').textContent = state.balance.toFixed(2)+'$';
-            $('#withdrawGames').textContent = state.gamesSinceWithdrawal;
-        }
-
-        function toast(msg) { const e=document.querySelector('.toast'); if(e)e.remove(); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000); }
-        function vibrate(ms) { ms=ms||12; if(navigator.vibrate)navigator.vibrate(ms); }
-        function showCenterBanner(text, type) { var b=$('#centerBanner'); b.innerHTML=text; b.className='center-banner '+type+' show'; clearTimeout(b._timeout); b._timeout=setTimeout(function(){b.className='center-banner '+type},2200); }
-
-        // ═══════════════════════════════════════
-        // ROULETTE NUMBERS (внутри кольца — вращаются)
-        // ═══════════════════════════════════════
-        var rNumbers = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-        var reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-
-        function buildRouletteRing() {
-            var ring = $('#rouletteRing');
-            var slices = [];
-            rNumbers.forEach(function(num, i) {
-                var color = num===0?'#27ae60':reds.includes(num)?'#c0392b':'#1a1a1a';
-                slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg');
-            });
-            ring.style.background = 'conic-gradient('+slices.join(',')+')';
-        }
+        var rNumbers=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];var reds=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+        function buildRouletteRing(){var ring=$('#rouletteRing');var slices=[];rNumbers.forEach(function(num,i){var color=num===0?'#27ae60':reds.includes(num)?'#c0392b':'#1a1a1a';slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg')});ring.style.background='conic-gradient('+slices.join(',')+')'}
         buildRouletteRing();
 
-        // ═══════════════════════════════════════
-        // TABS
-        // ═══════════════════════════════════════
+        if(!localStorage.getItem('welcomeShown')){localStorage.setItem('welcomeShown','1');setTimeout(function(){showCenterBanner('👋 Добро пожаловать!<br><span style="font-size:14px;">Выберите ставку и нажмите на колесо</span>','win')},1000)}
+        var savedBet=localStorage.getItem('lastBet'),savedAmount=localStorage.getItem('lastBetAmount');
+        if(savedBet){state.selectedBet=savedBet;var btn=document.querySelector('.bet-option[data-bet="'+savedBet+'"]');if(btn)btn.classList.add('selected')}
+        if(savedAmount)$('#betAmount').value=savedAmount;
+
         $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){
             $$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');
-            $$('.tab-content').forEach(function(x){x.classList.remove('active')});
-            var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');
-            if(b.dataset.tab==='multiplayer'){connectWS();switchMPTab('lobby');playJoinSound();setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}
-            if(b.dataset.tab==='profile'){loadUser();}
+            $$('.tab-content').forEach(function(x){x.classList.remove('active')});$('#tab-'+b.dataset.tab).classList.add('active');
+            if(b.dataset.tab==='multiplayer'){connectWS();switchToLobby()}
+            if(b.dataset.tab==='profile')loadUser();
             vibrate();
-        });});
+        })});
 
-        // ═══════════════════════════════════════
-        // BETS
-        // ═══════════════════════════════════════
-        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){
-            if(state.isSpinning)return;
-            $$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});
-            b.classList.add('selected');
-            if(b.dataset.bet==='red')b.classList.add('red-sel');
-            if(b.dataset.bet==='black')b.classList.add('black-sel');
-            if(b.dataset.bet!=='number'){state.selectedBet=b.dataset.bet;$('#numberBetInput').style.display='none';}
-            vibrate();
-        });});
-        $$('[data-quick]').forEach(function(b){b.addEventListener('click',function(){$('#betAmount').value=b.dataset.quick;vibrate();});});
-        $('#freeSpinToggle').addEventListener('click',function(){if(state.freeSpins<=0){toast('Нет спинов');return}this.classList.toggle('checked');vibrate();});
-        $('#numberBetBtn').addEventListener('click',function(){var input=$('#numberBetInput');if(input.style.display==='none'){input.style.display='block';input.focus();this.classList.add('selected');state.selectedBet=String(input.value||17);}else{input.style.display='none';this.classList.remove('selected');state.selectedBet=null;}});
-        $('#numberBetInput').addEventListener('input',function(){var val=parseInt(this.value);if(val>=0&&val<=36){state.selectedBet=String(val);$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});$('#numberBetBtn').classList.add('selected');}});
+        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});b.classList.add('selected');if(b.dataset.bet==='red')b.classList.add('red-sel');if(b.dataset.bet==='black')b.classList.add('black-sel');if(b.dataset.bet!=='number'){state.selectedBet=b.dataset.bet;$('#numberBetInput').style.display='none'}vibrate()})});
+        $$('[data-quick]').forEach(function(b){b.addEventListener('click',function(){$('#betAmount').value=b.dataset.quick;vibrate()})});
+        $('#freeSpinToggle').addEventListener('click',function(){if(state.freeSpins<=0){toast('Нет спинов');return}this.classList.toggle('checked');vibrate()});
+        $('#numberBetBtn').addEventListener('click',function(){var input=$('#numberBetInput');if(input.style.display==='none'){input.style.display='block';input.focus();this.classList.add('selected');state.selectedBet=String(input.value||17)}else{input.style.display='none';this.classList.remove('selected');state.selectedBet=null}});
+        $('#numberBetInput').addEventListener('input',function(){var val=parseInt(this.value);if(val>=0&&val<=36){state.selectedBet=String(val);$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});$('#numberBetBtn').classList.add('selected')}});
 
-        // ═══════════════════════════════════════
-        // SPIN
-        // ═══════════════════════════════════════
-        // Spin (с защитой от двойного клика)
-            var lastSpinTime = 0;
-            $('#wheelClickArea').addEventListener('click', async function(){
-            var now = Date.now();
-            if(now - lastSpinTime < 800) return; // debounce 800мс
-            lastSpinTime = now;
-            if(state.isSpinning)return;
-            if(!state.selectedBet){showCenterBanner('❌ Сделайте ставку!','lose');return;}
-            var useFree=$('#freeSpinToggle').classList.contains('checked');
-            var amount=parseFloat($('#betAmount').value)||0;
-            if(!useFree&&amount<=0){toast('Введите сумму!');return;}
-            if(!useFree&&amount>state.balance){toast('Недостаточно средств!');return;}
-            if(useFree&&state.freeSpins<=0){toast('Нет спинов!');return;}
-            state.isSpinning=true;
-            $('#wheelClickArea').style.opacity='0.85';
-            $('#rouletteBall').classList.remove('stopped');
-            vibrate(30);
-            try{
-                var result=await api('/api/game_result',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
-                buildRouletteRing();
-                await spinWheel(result.number);
-                state.balance=result.new_balance;
-                state.freeSpins=result.free_spins;
-                state.totalGames=result.games_played;
-                state.gamesSinceWithdrawal=result.games_since_withdrawal;
-                if(result.is_win)state.wins++;
-                updateUI();
-                if(result.is_win){
-                    showCenterBanner('🎉 +'+result.win_amount.toFixed(2)+'$','win');
-                    $('#wheelClickArea').classList.add('win-anim');
-                    setTimeout(function(){$('#wheelClickArea').classList.remove('win-anim')},3000);
-                    spawnConfetti();playWinSound();
-                }else{showCenterBanner('😞 -'+amount.toFixed(2)+'$','lose');playLoseSound();}
-                var cn={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};
-                $('#resultNum').textContent=result.number;
-                $('#resultNum').style.color=result.color==='red'?'#ff4444':result.color==='green'?'#ffd700':'#e8e8e8';
-                $('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';
-                $('#balanceCard').classList.add('wave');
-                setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
-            }catch(e){toast('Ошибка игры');loadUser();}
-            finally{state.isSpinning=false;$('#wheelClickArea').style.opacity='1';$('#freeSpinToggle').classList.remove('checked');$('#rouletteBall').classList.add('stopped');}
-        });
+        var lastSpinTime=0;
+        $('#wheelClickArea').addEventListener('click',async function(){var now=Date.now();if(now-lastSpinTime<800)return;lastSpinTime=now;if(state.isSpinning)return;if(!state.selectedBet){showCenterBanner('❌ Сделайте ставку!','lose');return}var useFree=$('#freeSpinToggle').classList.contains('checked');var amount=parseFloat($('#betAmount').value)||0;if(!useFree&&amount<=0){toast('Введите сумму!');return}if(!useFree&&amount>state.balance){toast('Недостаточно средств!');return}if(useFree&&state.freeSpins<=0){toast('Нет спинов!');return}state.isSpinning=true;$('#wheelClickArea').style.opacity='0.85';$('#rouletteBall').classList.remove('stopped');vibrate(30);try{var result=await api('/api/game_result',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});buildRouletteRing();await spinWheel(result.number);state.balance=result.new_balance;state.freeSpins=result.free_spins;state.totalGames=result.games_played;state.gamesSinceWithdrawal=result.games_since_withdrawal;if(result.is_win)state.wins++;updateUI();if(result.is_win){showCenterBanner('🎉 +'+result.win_amount.toFixed(2)+'$','win');$('#wheelClickArea').classList.add('win-anim');setTimeout(function(){$('#wheelClickArea').classList.remove('win-anim')},3000);spawnConfetti();playWinSound()}else{showCenterBanner('😞 -'+amount.toFixed(2)+'$','lose');playLoseSound()}var cn={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};$('#resultNum').textContent=result.number;$('#resultNum').style.color=result.color==='red'?'#ff4444':result.color==='green'?'#ffd700':'#e8e8e8';$('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';$('#balanceCard').classList.add('wave');setTimeout(function(){$('#balanceCard').classList.remove('wave')},600)}catch(e){toast('Ошибка игры');loadUser()}finally{state.isSpinning=false;$('#wheelClickArea').style.opacity='1';$('#freeSpinToggle').classList.remove('checked');$('#rouletteBall').classList.add('stopped')}});
+        function spinWheel(targetNum){return new Promise(function(resolve){var ring=$('#rouletteRing');var idx=rNumbers.indexOf(targetNum);var sector=360/37,angle=sector*idx+sector/2;var spins=5+Math.floor(Math.random()*5);wheelRotation+=spins*360+(360-wheelRotation%360)+angle;ring.style.transform='rotate('+wheelRotation+'deg)';playSpinSound();setTimeout(resolve,5000)})}
 
-        function spinWheel(targetNum){return new Promise(function(resolve){var ring=$('#rouletteRing');var idx=rNumbers.indexOf(targetNum);var sector=360/37,angle=sector*idx+sector/2;var spins=5+Math.floor(Math.random()*5);wheelRotation+=spins*360+(360-wheelRotation%360)+angle;ring.style.transform='rotate('+wheelRotation+'deg)';playSpinSound();setTimeout(resolve,5000);});}
-
-        // ═══════════════════════════════════════
         // WEBSOCKET
-        // ═══════════════════════════════════════
-        function connectWS(){if(ws&&ws.readyState===WebSocket.OPEN)return;try{ws=new WebSocket(WS_URL+'/ws');ws.onopen=function(){wsReconnectDelay=1000;ws.send(JSON.stringify({action:'connect',user_id:user.id}));};ws.onmessage=function(e){try{handleWS(JSON.parse(e.data));}catch(ex){}};ws.onclose=function(){wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);setTimeout(connectWS,wsReconnectDelay);};}catch(e){setTimeout(connectWS,3000);}}
-        function sendWS(data){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else{toast('Нет соединения');connectWS();}}
+        function connectWS(){if(ws&&ws.readyState===WebSocket.OPEN)return;try{ws=new WebSocket(WS_URL+'/ws');ws.onopen=function(){wsReconnectDelay=1000;ws.send(JSON.stringify({action:'connect',user_id:user.id}))};ws.onmessage=function(e){try{handleWS(JSON.parse(e.data))}catch(ex){}};ws.onclose=function(){wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);setTimeout(connectWS,wsReconnectDelay)}}catch(e){setTimeout(connectWS,3000)}}
+        function sendWS(data){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else{toast('Нет соединения');connectWS()}}
+        function handleWS(data){switch(data.type){case 'mp_rooms_list':renderMPLobby(data.rooms||[]);break;case 'mp_state':updateMPRoom(data);break;case 'mp_timer':$('#mpTimerBig').textContent=data.time;mpTimer=data.time;break;case 'mp_spinning':mpSpinWheel(data);break;case 'mp_result':showMPResult(data);break;case 'mp_round_reset':resetMPRoom();break;case 'mp_player_joined':playJoinSound();break;case 'mp_player_raised':playJoinSound();toast('⬆️ Ставка повышена!');break;case 'connected':break;case 'error':toast(data.message);break;case 'pong':break;}}
 
-        function handleWS(data){
-            switch(data.type){
-                case 'mp_rooms_list':renderMPRooms(data.rooms||[]);break;
-                case 'mp_state':updateMPRoom(data);break;
-                case 'mp_timer':$('#mpRoomTimer').textContent=data.time;break;
-                case 'mp_spinning':mpSpinWheel(data);break;
-                case 'mp_result':showMPResult(data);break;
-                case 'mp_round_reset':resetMPRoom();break;
-                case 'mp_left_room':resetMPRoom();toast('Вы вышли');break;
-                case 'mp_player_joined':playJoinSound();toast('🎲 Игрок присоединился!');break;
-                case 'mp_player_raised':toast('⬆️ '+(data.nickname||'Игрок')+' повысил!');break;
-                case 'connected':break;
-                case 'error':toast(data.message);break;
-                case 'pong':break;
-            }
-        }
+        // MP
+        var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];var mpPlayers=[],mpBank=0,mpTimer=30,mpStatus='waiting';
+        function switchToLobby(){$('#mpLobby').classList.remove('hidden');$('#mpRoom').classList.add('hidden');mpIsInRoom=false;mpCurrentRoom=null;sendWS({action:'mp_get_rooms'})}
+        function switchToRoom(){$('#mpLobby').classList.add('hidden');$('#mpRoom').classList.remove('hidden');mpIsInRoom=true}
+        function renderMPLobby(rooms){var list=$('#mpRoomsList');list.innerHTML='';if(!rooms||!rooms.length){list.innerHTML='<div style="text-align:center;opacity:0.4;padding:20px;">Нет активных комнат.<br>Создайте первую!</div>';return}rooms.sort(function(a,b){return b.bank-a.bank});rooms.forEach(function(r){var topBet=r.top_bet||0;var card=document.createElement('div');card.className='mp-room-card';card.innerHTML='<div class="mp-room-header"><span class="mp-room-title">🏠 '+(r.name||'Комната #'+r.room_id.substring(0,6))+'</span><span class="mp-room-timer">⏱ '+(r.timer||0)+'с</span></div><div class="mp-room-info"><span class="mp-room-players">👥 '+(r.players_count||0)+'/6</span><span class="mp-room-top-bet">🔝 '+(topBet>0?topBet.toFixed(2)+'$':'—')+'</span><span style="color:#ffd700;">💰 '+(r.bank||0).toFixed(2)+'$</span></div>';card.addEventListener('click',function(){joinMPRoom(r.room_id)});list.appendChild(card)})}
+        function joinMPRoom(roomId){var amt=parseFloat($('#mpBetAmount').value)||0;if(amt<1){toast('Минимальная ставка: 1$');return}if(amt>state.balance){toast('Недостаточно средств');return}var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];sendWS({action:'mp_join_room',room_id:roomId,amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)]});mpCurrentRoom=roomId;mpMyBet=amt;state.balance-=amt;updateUI();switchToRoom()}
+        function updateMPRoom(data){mpPlayers=data.players||[];mpBank=data.bank||0;mpTimer=data.timer||0;mpStatus=data.round_active?'waiting':'spinning';if(data.my_bet)mpMyBet=data.my_bet;$('#mpRoomId').textContent=(data.room_id||'').substring(0,8);$('#mpBankDisplay').textContent=mpBank.toFixed(2);$('#mpTimerBig').textContent=mpTimer;if(mpMyBet>0){$('#mpRaiseBtn').classList.remove('hidden');$('#mpRaiseBtn').textContent='⬆️ Повысить ('+mpMyBet.toFixed(2)+'$)'}else{$('#mpRaiseBtn').classList.add('hidden')}drawMPWheel();renderMPLeaderboardLive()}
+        function drawMPWheel(){var wheel=$('#mpLiveWheel');var total=mpBank||1;var slices=[],usedDeg=0;if(!mpPlayers.length){wheel.style.background='#1a1a1a';return}mpPlayers.forEach(function(p,i){var pct=p.bet/total;var deg=pct*360;slices.push((p.color||mpColors[i%mpColors.length])+' '+usedDeg+'deg '+(usedDeg+deg)+'deg');usedDeg+=deg});if(usedDeg<360)slices.push('#1a1a1a '+usedDeg+'deg 360deg');wheel.style.background='conic-gradient('+slices.join(',')+')'}
+        function renderMPLeaderboardLive(){var lb=$('#mpLeaderboardLive');if(!mpPlayers.length){lb.innerHTML='<div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>';return}var sorted=[].concat(mpPlayers).sort(function(a,b){return b.bet-a.bet});lb.innerHTML=sorted.map(function(p,i){var pct=mpBank>0?((p.bet/mpBank)*100).toFixed(1):0;var isMe=p.user_id===user.id;var isLead=i===0;return'<div class="mp-player-card'+(isLead?' lead':'')+(isMe?' me':'')+'"><div class="mp-player-left"><span class="mp-player-avatar">'+(p.avatar||'🎲')+'</span><div><div class="mp-player-name">'+(p.nickname||'Игрок')+(isMe?' (вы)':'')+'</div><div class="mp-player-pct">'+pct+'% шанс</div></div></div><div class="mp-player-bet">'+p.bet.toFixed(2)+'$</div></div>'}).join('')}
+        function mpSpinWheel(data){var wheel=$('#mpLiveWheel');var deg=data.winner_angle||(Math.random()*360);var spins=5+Math.floor(Math.random()*5);mpWheelRotation+=spins*360+(360-mpWheelRotation%360)+deg;wheel.style.transform='rotate('+mpWheelRotation+'deg)';playSpinSound()}
+        function showMPResult(data){if(data.winner_id===user.id){showCenterBanner('🏆 +'+data.win_amount.toFixed(2)+'$','win');spawnConfetti();playWinSound();$('#mpClaimBtn').classList.remove('hidden')}else{showCenterBanner('😢 Победил: '+(data.winner_nickname||'Игрок'),'lose');playLoseSound();$('#mpClaimBtn').classList.add('hidden')}loadUser()}
+        function resetMPRoom(){mpPlayers=[];mpBank=0;mpTimer=30;mpMyBet=0;mpStatus='waiting';mpCurrentRoom=null;mpIsInRoom=false;$('#mpRoomId').textContent='---';$('#mpBankDisplay').textContent='0.00';$('#mpTimerBig').textContent='30';$('#mpRaiseBtn').classList.add('hidden');$('#mpClaimBtn').classList.add('hidden');$('#mpLiveWheel').style.background='#1a1a1a';$('#mpLiveWheel').style.transform='rotate(0deg)';mpWheelRotation=0;renderMPLeaderboardLive();switchToLobby()}
+        $('#mpCreateRoomBtn').addEventListener('click',function(){var amt=parseFloat($('#mpBetAmount').value)||0;if(amt<1){toast('Минимум 1$');return}if(amt>state.balance){toast('Недостаточно средств');return}var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];sendWS({action:'mp_create_room',amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)]});mpMyBet=amt;state.balance-=amt;updateUI();switchToRoom();$(this).disabled=true;setTimeout(function(){$('#mpCreateRoomBtn').disabled=false},2000)});
+        $('#mpPlaceBetBtn').addEventListener('click',function(){if(!mpCurrentRoom){toast('Вы не в комнате');return}var extra=parseFloat($('#mpBetAmount').value)||0;if(extra<0.1){toast('Введите сумму');return}if(mpMyBet+extra>state.balance){toast('Недостаточно средств');return}sendWS({action:'mp_raise_bet',room_id:mpCurrentRoom,amount:extra});mpMyBet+=extra;state.balance-=extra;updateUI();$(this).disabled=true;setTimeout(function(){$('#mpPlaceBetBtn').disabled=false},2000)});
+        $('#mpRaiseBtn').addEventListener('click',function(){$('#mpPlaceBetBtn').click()});
+        $('#mpLeaveBtn').addEventListener('click',function(){if(!mpCurrentRoom)return;sendWS({action:'mp_leave_room',room_id:mpCurrentRoom});resetMPRoom();loadUser()});
+        $('#mpClaimBtn').addEventListener('click',function(){resetMPRoom();toast('✅ Выигрыш зачислен!');loadUser()});
 
-        // ═══════════════════════════════════════
-        // MULTIPLAYER
-        // ═══════════════════════════════════════
-        var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];
-        var mpWheelRotation=0,mpMyRoom=null,mpIsCreator=false,lastMPResult=null;
-
-        function switchMPTab(tab){if(tab==='lobby'){$('#mpLobbyArea').classList.remove('hidden');$('#mpRoomArea').classList.add('hidden');}else{$('#mpLobbyArea').classList.add('hidden');$('#mpRoomArea').classList.remove('hidden');}}
-
-        function renderMPRooms(rooms){
-            var list=$('#mpRoomsList');list.innerHTML='';
-            if(!rooms||!rooms.length){list.innerHTML='<div style="text-align:center;opacity:0.4;padding:16px;">Нет активных комнат</div>';return;}
-            rooms.forEach(function(r){
-                var card=document.createElement('div');card.className='room-card';
-                card.innerHTML='<div class="room-header"><span class="room-id">#'+r.room_id+'</span><span class="room-timer">⏱ '+(r.timer||0)+'с</span></div><div style="display:flex;justify-content:space-between;margin-top:6px;"><span>👥 '+(r.players_count||0)+'/6</span><span class="room-bank">💰 '+(r.bank||0).toFixed(2)+'$</span></div>';
-                card.addEventListener('click',function(){
-                    var amt=parseFloat($('#mpBetInput').value)||0;
-                    if(amt<1){toast('Минимум 1$');return;}
-                    if(amt>state.balance){toast('Недостаточно средств');return;}
-                    var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];
-                    sendWS({action:'mp_join_room',room_id:r.room_id,amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)]});
-                    mpMyRoom=r.room_id;mpIsCreator=false;state.balance-=amt;updateUI();switchMPTab('room');
-                });
-                list.appendChild(card);
-            });
-        }
-
-        function updateMPRoom(data){
-            if(!mpMyRoom)mpMyRoom=data.room_id;
-            $('#mpRoomId').textContent=data.room_id||mpMyRoom;
-            $('#mpRoomBank').textContent=(data.bank||0).toFixed(2);
-            $('#mpRoomTimer').textContent=data.timer||0;
-            mpState.players=data.players||[];mpState.bank=data.bank||0;
-            mpState.timer=data.timer||0;mpState.myBet=data.my_bet||0;
-            mpState.roundActive=data.round_active;
-            if(mpState.myBet>0){$('#mpRaiseBetBtn').classList.remove('hidden');$('#mpRaiseBetBtn').textContent='⬆️ Повысить ('+mpState.myBet.toFixed(2)+'$)';}
-            else{$('#mpRaiseBetBtn').classList.add('hidden');}
-            drawMPWheel();renderMPLeaderboard();
-        }
-
-        function drawMPWheel(){
-            var ring=$('#mpWheelRing');var total=mpState.bank||1;var slices=[],usedDeg=0;
-            if(mpState.players.length===0){ring.style.background='#1a1a1a';clearWheelNumbers(ring);return;}
-            mpState.players.forEach(function(p,i){var pct=p.bet/total;var deg=pct*360;slices.push((p.color||mpColors[i%mpColors.length])+' '+usedDeg+'deg '+(usedDeg+deg)+'deg');usedDeg+=deg;});
-            if(usedDeg<360)slices.push('#1a1a1a '+usedDeg+'deg 360deg');
-            ring.style.background='conic-gradient('+slices.join(',')+')';
-        }
-
-        function renderMPLeaderboard(){
-            var lb=$('#mpLeaderboard');
-            if(!mpState.players.length){lb.innerHTML='<div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>';return;}
-            var sorted=[].concat(mpState.players).sort(function(a,b){return b.bet-a.bet;});
-            lb.innerHTML=sorted.map(function(p,i){var pct=mpState.bank>0?((p.bet/mpState.bank)*100).toFixed(1):0;var isMe=p.user_id===user.id;return'<div class="mp-player-row'+(isMe?'" style="border:1px solid rgba(255,215,0,0.3);background:rgba(255,215,0,0.05)':'')+'"><div><span class="mp-player-avatar">'+(p.avatar||'🎲')+'</span><span class="mp-player-color" style="background:'+(p.color||mpColors[i%mpColors.length])+'"></span>'+(p.nickname||'Player')+(isMe?' (вы)':'')+'</div><div style="font-weight:700;">'+p.bet.toFixed(2)+'$ ('+pct+'%)</div></div>';}).join('');
-        }
-
-        function mpSpinWheel(data){var ring=$('#mpWheelRing');var targetDeg=data.winner_angle||(Math.random()*360);var spins=5+Math.floor(Math.random()*5);mpWheelRotation+=spins*360+(360-mpWheelRotation%360)+targetDeg;ring.style.transform='rotate('+mpWheelRotation+'deg)';playSpinSound();$('#mpRaiseBetBtn').disabled=true;}
-
-        function showMPResult(data){
-            lastMPResult = data;
-            if(data.winner_id===user.id){
-                showCenterBanner('🏆 +'+data.win_amount.toFixed(2)+'$','win');spawnConfetti();playWinSound();
-                $('#mpClaimBtn').classList.remove('hidden');
-            }else{
-                showCenterBanner('😢 Победил: '+(data.winner_nickname||'Игрок')+' (+'+data.win_amount.toFixed(2)+'$)','lose');playLoseSound();
-                $('#mpClaimBtn').classList.add('hidden');
-            }
-            loadUser(); // ИСПРАВЛЕНИЕ: обновляем баланс после мультиплеера
-        }
-
-        $('#mpClaimBtn').addEventListener('click', function(){resetMPRoom();$('#mpClaimBtn').classList.add('hidden');lastMPResult=null;toast('✅ Выигрыш зачислен!');loadUser();});
-
-        function resetMPRoom(){
-            mpState={players:[],bank:0,timer:30,myBet:0,roundActive:false};
-            mpMyRoom=null;mpIsCreator=false;
-            $('#mpRoomId').textContent='---';$('#mpRoomBank').textContent='0.00';$('#mpRoomTimer').textContent='30';
-            $('#mpRaiseBetBtn').classList.add('hidden');$('#mpRaiseBetBtn').disabled=false;
-            $('#mpClaimBtn').classList.add('hidden');
-            var ring=$('#mpWheelRing');ring.style.background='#1a1a1a';ring.style.transform='rotate(0deg)';
-            clearWheelNumbers(ring);
-            mpWheelRotation=0;renderMPLeaderboard();switchMPTab('lobby');sendWS({action:'mp_get_rooms'});
-        }
-
-        $('#mpCreateRoomBtn').addEventListener('click',function(){var amt=parseFloat($('#mpBetInput').value)||0;if(amt<1){toast('Минимум 1$');return;}if(amt>state.balance){toast('Недостаточно средств');return;}var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];sendWS({action:'mp_create_room',amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)]});mpIsCreator=true;state.balance-=amt;updateUI();switchMPTab('room');$(this).disabled=true;setTimeout(function(){$('#mpCreateRoomBtn').disabled=false;},2000);});
-        $('#mpRaiseBetBtn').addEventListener('click',function(){var extra=parseFloat($('#mpBetInput').value)||0;if(extra<0.1){toast('Введите сумму');return;}if(mpState.myBet+extra>state.balance){toast('Недостаточно средств');return;}sendWS({action:'mp_raise_bet',room_id:mpMyRoom,amount:extra});$(this).disabled=true;setTimeout(function(){$('#mpRaiseBetBtn').disabled=false;},2000);});
-        $('#mpLeaveRoomBtn').addEventListener('click',function(){if(!mpMyRoom)return;sendWS({action:'mp_leave_room',room_id:mpMyRoom});resetMPRoom();loadUser();});
-
-        // ═══════════════════════════════════════
         // DEPOSIT
-        // ═══════════════════════════════════════
-        function showDeposit(){$('#depositModal').classList.add('active');$('#depositAmount').value=10;$('#depositStatus').textContent='';if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}}
-        $('#depositCloseBtn').addEventListener('click',function(){$('#depositModal').classList.remove('active');if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}});
-        $('#depositConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#depositAmount').value)||0;if(amount<=0){toast('Введите сумму');return;}var btn=this;btn.disabled=true;btn.textContent='⏳';try{var r=await api('/api/create_invoice',{amount:amount});if(r.success){pendingPaymentId=r.payment_id;$('#depositStatus').textContent='⏳ Ожидание оплаты...';if(tg){tg.openLink(r.invoice_url);}else{window.open(r.invoice_url,'_blank');}if(paymentCheckInterval)clearInterval(paymentCheckInterval);paymentCheckInterval=setInterval(async function(){if(!pendingPaymentId){clearInterval(paymentCheckInterval);return;}try{var check=await api('/api/check_payment',{payment_id:pendingPaymentId});if(check.success&&check.status==='paid'){state.balance=check.new_balance;updateUI();$('#balanceDisplay').textContent=check.new_balance.toFixed(2)+'$';$('#balanceCard').classList.add('wave');setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);$('#depositStatus').textContent='✅ Оплачено! +'+check.amount+'$';pendingPaymentId=null;clearInterval(paymentCheckInterval);paymentCheckInterval=null;btn.textContent='Оплатить';setTimeout(function(){$('#depositModal').classList.remove('active');},2000);}}catch(e){}},5000);btn.textContent='Оплатить (ожидание)';}else{$('#depositStatus').textContent='❌ Ошибка';}}catch(e){$('#depositStatus').textContent='❌ Ошибка';}btn.disabled=false;});
+        function showDeposit(){$('#depositModal').classList.add('active');$('#depositAmount').value=10;$('#depositStatus').textContent='';if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null}}
+        $('#depositCloseBtn').addEventListener('click',function(){$('#depositModal').classList.remove('active');if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null}});
+        $('#depositConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#depositAmount').value)||0;if(amount<=0){toast('Введите сумму');return}var btn=this;btn.disabled=true;btn.textContent='⏳';try{var r=await api('/api/create_invoice',{amount:amount});if(r.success){pendingPaymentId=r.payment_id;$('#depositStatus').textContent='⏳ Ожидание оплаты...';if(tg){tg.openLink(r.invoice_url)}else{window.open(r.invoice_url,'_blank')}if(paymentCheckInterval)clearInterval(paymentCheckInterval);paymentCheckInterval=setInterval(async function(){if(!pendingPaymentId){clearInterval(paymentCheckInterval);return}try{var check=await api('/api/check_payment',{payment_id:pendingPaymentId});if(check.success&&check.status==='paid'){state.balance=check.new_balance;updateUI();$('#balanceDisplay').textContent=check.new_balance.toFixed(2)+'$';$('#balanceCard').classList.add('wave');setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);$('#depositStatus').textContent='✅ Оплачено! +'+check.amount+'$';pendingPaymentId=null;clearInterval(paymentCheckInterval);paymentCheckInterval=null;btn.textContent='Оплатить';setTimeout(function(){$('#depositModal').classList.remove('active')},2000)}}catch(e){}},5000);btn.textContent='Оплатить (ожидание)'}else{$('#depositStatus').textContent='❌ Ошибка'}}catch(e){$('#depositStatus').textContent='❌ Ошибка'}btn.disabled=false});
         $('#profileDepositBtn').addEventListener('click',showDeposit);
 
-        // ═══════════════════════════════════════
         // WITHDRAW
-        // ═══════════════════════════════════════
-        function showWithdraw(){if(state.gamesSinceWithdrawal<2){toast('Сыграйте минимум 2 игры');return;}if(state.balance<=0){toast('Нет средств');return;}updateUI();$('#withdrawModal').classList.add('active');}
-        $('#withdrawCloseBtn').addEventListener('click',function(){$('#withdrawModal').classList.remove('active');});
-        $('#withdrawConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#withdrawAmount').value)||0;var wallet=$('#withdrawWallet').value.trim();if(amount<=0){toast('Введите сумму');return;}if(!wallet){toast('Введите адрес или @username');return;}if(amount>state.balance){toast('Недостаточно средств');return;}try{var r=await api('/api/withdraw',{amount:amount,wallet:wallet});if(r.success){state.balance=r.new_balance;updateUI();$('#withdrawModal').classList.remove('active');toast('✅ Заявка отправлена!');}}catch(e){}});
+        function showWithdraw(){if(state.gamesSinceWithdrawal<2){toast('Сыграйте минимум 2 игры');return}if(state.balance<=0){toast('Нет средств');return}updateUI();$('#withdrawModal').classList.add('active')}
+        $('#withdrawCloseBtn').addEventListener('click',function(){$('#withdrawModal').classList.remove('active')});
+        $('#withdrawConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#withdrawAmount').value)||0;var wallet=$('#withdrawWallet').value.trim();if(amount<=0){toast('Введите сумму');return}if(!wallet){toast('Введите адрес или @username');return}if(amount>state.balance){toast('Недостаточно средств');return}try{var r=await api('/api/withdraw',{amount:amount,wallet:wallet});if(r.success){state.balance=r.new_balance;updateUI();$('#withdrawModal').classList.remove('active');toast('✅ Заявка отправлена!')}}catch(e){}});
         $('#profileWithdrawBtn').addEventListener('click',showWithdraw);
 
-        // ═══════════════════════════════════════
-        // MODAL CLOSE ON CLICK OUTSIDE
-        // ═══════════════════════════════════════
-        document.querySelectorAll('.modal-overlay').forEach(function(overlay){overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.classList.remove('active');if(paymentCheckInterval&&overlay.id==='depositModal'){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}}});});
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay){overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.classList.remove('active');if(paymentCheckInterval&&overlay.id==='depositModal'){clearInterval(paymentCheckInterval);paymentCheckInterval=null}}})});
 
-        // ═══════════════════════════════════════
-        // INIT
-        // ═══════════════════════════════════════
         loadUser();
         var urlParams=new URLSearchParams(window.location.search);
-        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active');});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active');});$('#tab-multiplayer').classList.add('active');connectWS();switchMPTab('lobby');setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}}
-        setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'});},25000);
-        window.addEventListener('beforeunload',function(){if(ws)ws.close();if(paymentCheckInterval)clearInterval(paymentCheckInterval);});
+        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active')});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active')});$('#tab-multiplayer').classList.add('active');connectWS();switchToLobby()}}
+        setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'})},25000);
+        window.addEventListener('beforeunload',function(){if(ws)ws.close();if(paymentCheckInterval)clearInterval(paymentCheckInterval)});
     </script>
 </body>
 </html>
