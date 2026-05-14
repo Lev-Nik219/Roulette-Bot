@@ -633,7 +633,6 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
          InlineKeyboardButton(text="➖ Списать", callback_data="admin_take")],
         [InlineKeyboardButton(text="👥 Список игроков", callback_data="admin_list")],
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
-        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="🗑 Очистить БД", callback_data="admin_clear_db")]
     ])
 
@@ -892,8 +891,11 @@ async def cmd_start(message: Message):
 async def deposit_info(callback: CallbackQuery):
     await callback.answer()
     await callback.message.answer(
-        f"💳 *Пополнение*\n\nОткройте Mini App и нажмите кнопку «Пополнить».\nИли используйте CryptoBot.",
-        parse_mode=ParseMode.MARKDOWN
+        f"💳 *Пополнение*\n\nОткройте Mini App → Профиль → Пополнить",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🎡 Открыть Mini App", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single&user_id={callback.from_user.id}"))]
+        ])
     )
 
 @user_router.callback_query(F.data == "withdraw_info")
