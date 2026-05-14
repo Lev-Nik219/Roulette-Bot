@@ -19,6 +19,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from collections import defaultdict
 import aiosqlite
 
+from aiohttp import ClientSession, WSMsgType
 from aiogram import Bot, Dispatcher, Router, F, types
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
@@ -1079,6 +1080,49 @@ def create_app() -> web.Application:
     app.router.add_post("/api/check_payment", api_check_payment)
     app.router.add_post("/api/crypto_callback", api_crypto_callback)
     app.router.add_post("/api/withdraw", api_withdraw)
+
+    # --- MP Server & Proxy ---
+    async def start_mp_server(app):
+        """Запуск MP-сервера внутри основного процесса"""
+        import mp_server
+        runner = web.AppRunner(mp_server.create_app())
+        await runner.setup()
+        site = web.TCPSite(runner, 'localhost', 10001)
+        await site.start()
+        logger.info("✅ MP server started on internal port 10001")
+
+    async def proxy_mp_ws(request):
+        """Прокси WebSocket запросов на внутренний MP-сервер"""
+        ws_client = web.WebSocketResponse()
+        await ws_client.prepare(request)
+        
+        try:
+            async with aiohttp_client.ClientSession() as session:
+                async with session.ws_connect('http://localhost:10001/ws') as mp_ws:
+                    
+                    async def client_to_mp():
+                        async for msg in ws_client:
+                            if msg.type == web.WSMsgType.TEXT:
+                                await mp_ws.send_str(msg.data)
+                            elif msg.type in (web.WSMsgType.CLOSE, web.WSMsgType.ERROR):
+                                break
+                    
+                    async def mp_to_client():
+                        async for msg in mp_ws:
+                            if msg.type == WSMsgType.TEXT:
+                                await ws_client.send_str(msg.data)
+                            elif msg.type in (WSMsgType.CLOSE, WSMsgType.ERROR):
+                                break
+                    
+                    await asyncio.gather(client_to_mp(), mp_to_client())
+                    
+        except Exception as e:
+            logger.error(f"MP proxy error: {e}")
+        
+        return ws_client
+
+    app.router.add_get("/mp-ws", proxy_mp_ws)
+    app.on_startup.append(start_mp_server)
 
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
