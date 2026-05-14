@@ -242,244 +242,1203 @@
     <script>
         const tg = window.Telegram?.WebApp;
         let user = null;
-        if (tg) { tg.ready(); tg.expand(); if (tg.initDataUnsafe?.user) { user = { id: tg.initDataUnsafe.user.id, username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player', firstName: tg.initDataUnsafe.user.first_name || 'Player' }; } }
-        if (!user) { const p = new URLSearchParams(window.location.search); const uid = p.get('user_id'); if (uid) { user = { id: parseInt(uid), username: 'player', firstName: 'Player' }; } else { user = { id: 1167503795, username: 'test', firstName: 'Tester' }; } }
-
-        const API = 'https://roulette-bot-8i8t.onrender.com'; const WS_URL = API.replace('https','wss').replace('http','ws');
-        let state = { balance:0, freeSpins:0, totalGames:0, wins:0, selectedBet:null, isSpinning:false, gamesSinceWithdrawal:0 };
-        let ws = null, wheelRotation = 0, wsReconnectDelay = 1000;
-        let mpState = { players:[], bank:0, timer:30, myBet:0, roundActive:false, roomName:'' };
-        let audioCtx = null, pendingPaymentId = null, paymentCheckInterval = null;
-        let mpMyRoom = null;
-        const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
-
-        function showError(msg) { const o = $('#loadingOverlay'); o.innerHTML = '<div style="font-size:40px;margin-bottom:10px;">⚠️</div><div class="error-text">'+msg+'</div><button class="retry-btn" onclick="location.reload()">🔄 Перезагрузить</button>'; }
-        function hideLoading() { const el = $('#loadingOverlay'); if(el && el.querySelector('.loading-spinner')) { el.style.opacity='0'; el.style.transition='opacity 0.5s'; setTimeout(function(){el.remove();},500); } }
-
-        function getAudioContext() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; } catch(e) { return null; } }
-        document.addEventListener('touchstart', function() { getAudioContext(); }, { once: true });
-        document.addEventListener('click', function() { getAudioContext(); }, { once: true });
-
-        function playSpinSound(){try{const a=getAudioContext();if(!a)return;const d=5,s=a.sampleRate,b=a.createBuffer(1,d*s,s),c=b.getChannelData(0);for(let i=0;i<c.length;i++){const t=i/s,p=t/d;c[i]=(Math.random()*2-1)*0.015*(1-p*0.7)*(0.3+0.7*Math.sin(2*Math.PI*(6+p*40)*t))}const src=a.createBufferSource();src.buffer=b;const flt=a.createBiquadFilter();flt.type='bandpass';flt.frequency.value=500;const g=a.createGain();g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);src.connect(flt);flt.connect(g);g.connect(a.destination);src.start();src.stop(a.currentTime+d)}catch(e){}}
-        function playWinSound(){try{const a=getAudioContext();if(!a)return;[784,988,1175].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;const t=a.currentTime+i*0.15;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.35)})}catch(e){}}
-        function playLoseSound(){try{const a=getAudioContext();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(220,a.currentTime);o.frequency.linearRampToValueAtTime(140,a.currentTime+0.4);g.gain.setValueAtTime(0.03,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.4)}catch(e){}}
-        function playJoinSound(){try{const a=getAudioContext();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(660,a.currentTime);o.frequency.linearRampToValueAtTime(880,a.currentTime+0.15);g.gain.setValueAtTime(0.05,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.2);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.2)}catch(e){}}
-        function playRaiseSound(){try{const a=getAudioContext();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.setValueAtTime(440,a.currentTime);o.frequency.linearRampToValueAtTime(660,a.currentTime+0.1);g.gain.setValueAtTime(0.04,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.15);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+0.15)}catch(e){}}
-        function spawnConfetti(){try{var c=['#ffd700','#ff6b6b','#4CAF50','#f7971e'];for(var i=0;i<30;i++){var e=document.createElement('div');e.className='confetti';e.style.left=(35+Math.random()*30)+'%';e.style.top=(45+Math.random()*15)+'%';e.style.width=(5+Math.random()*7)+'px';e.style.height=(5+Math.random()*7)+'px';e.style.backgroundColor=c[Math.floor(Math.random()*c.length)];e.style.borderRadius=Math.random()>0.5?'50%':'2px';e.style.animationDuration=(1.5+Math.random()*1.5)+'s';document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}}catch(e){}}
-
-        const canvas = $('#particleCanvas'); const ctx = canvas.getContext('2d'); let particles = [];
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
-        class Particle { constructor() { this.reset(); } reset() { this.x=Math.random()*canvas.width; this.y=canvas.height+10; this.size=1+Math.random()*2.5; this.speed=0.2+Math.random()*0.8; this.opacity=0.1+Math.random()*0.3; this.color=Math.random()<0.5?'#ffd700':(Math.random()<0.5?'#4CAF50':'#f7971e'); this.wobble=Math.random()*Math.PI*2; } update() { this.y-=this.speed; this.x+=Math.sin(this.wobble)*0.2; this.wobble+=0.02; if(this.y<-10)this.reset(); } draw() { ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fillStyle=this.color; ctx.globalAlpha=this.opacity; ctx.fill(); ctx.globalAlpha=1; } }
-        for(let i=0;i<50;i++){const p=new Particle();p.y=Math.random()*canvas.height;particles.push(p);}
-        function animateParticles(){ctx.clearRect(0,0,canvas.width,canvas.height);particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animateParticles);}
-        animateParticles();
-
-        async function api(endpoint, data={}) { try { const r = await fetch(`${API}${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:user.id,...data}) }); if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); } return await r.json(); } catch(e) { toast('Ошибка: '+e.message); throw e; } }
-
-        async function loadUser() { try { const d = await api('/api/get_balance'); if (d.success) { state.balance = d.balance||0; state.freeSpins = d.free_spins||0; state.totalGames = d.total_games||0; state.wins = d.wins||0; state.gamesSinceWithdrawal = d.games_since_withdrawal||0; updateUI(); } hideLoading(); } catch(e) { showError('Не удалось загрузить данные.<br>Проверьте соединение.'); } }
-
-        if(!localStorage.getItem('welcomeShown')) { localStorage.setItem('welcomeShown', '1'); setTimeout(function() { showCenterBanner('👋 Добро пожаловать!<br><span style="font-size:14px;">Выберите ставку и нажмите на колесо</span>', 'win'); }, 1000); }
-
-        function updateUI() {
-            $('#balanceDisplay').textContent = state.balance.toFixed(2)+'$';
-            if(state.selectedBet) localStorage.setItem('lastBet', state.selectedBet);
-            localStorage.setItem('lastBetAmount', $('#betAmount').value);
-            $('#freeSpinCount').textContent = state.freeSpins;
-            $('#profileBalance').textContent = state.balance.toFixed(2)+'$';
-            $('#profileSpins').textContent = state.freeSpins;
-            $('#profileGames').textContent = state.totalGames;
-            $('#profileWins').textContent = state.wins;
-            $('#profileName').textContent = user.firstName||'Игрок';
-            $('#profileId').textContent = user.id;
-            $('#withdrawAvailable').textContent = state.balance.toFixed(2)+'$';
-            $('#withdrawGames').textContent = state.gamesSinceWithdrawal;
+        
+        // --- ИСПРАВЛЕНО: Безопасная инициализация пользователя ---
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            if (tg.initDataUnsafe?.user) {
+                user = {
+                    id: tg.initDataUnsafe.user.id,
+                    username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'Player',
+                    firstName: tg.initDataUnsafe.user.first_name || 'Player'
+                };
+            }
         }
-
-        function toast(msg) { const e=document.querySelector('.toast'); if(e)e.remove(); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(function(){t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(function(){t.remove()},300)},2000); }
-        function vibrate(ms) { ms=ms||12; if(navigator.vibrate)navigator.vibrate(ms); }
-        function showCenterBanner(text, type) { var b=$('#centerBanner'); b.innerHTML=text; b.className='center-banner '+type+' show'; clearTimeout(b._timeout); b._timeout=setTimeout(function(){b.className='center-banner '+type},2200); }
-
-        var savedBet = localStorage.getItem('lastBet'); var savedAmount = localStorage.getItem('lastBetAmount');
-        if(savedBet) { state.selectedBet = savedBet; var btn = document.querySelector('.bet-option[data-bet="'+savedBet+'"]'); if(btn) btn.classList.add('selected'); }
-        if(savedAmount) $('#betAmount').value = savedAmount;
-
-        var rNumbers = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-        var reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-
-        function buildRouletteRing() { var ring = $('#rouletteRing'); var slices = []; rNumbers.forEach(function(num, i) { var color = num===0?'#27ae60':reds.includes(num)?'#c0392b':'#1a1a1a'; slices.push(color+' '+i*(360/37)+'deg '+(i+1)*(360/37)+'deg'); }); ring.style.background = 'conic-gradient('+slices.join(',')+')'; }
-        buildRouletteRing();
-
-        $$('.tab-btn').forEach(function(b){b.addEventListener('click',function(){
-            $$('.tab-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');
-            $$('.tab-content').forEach(function(x){x.classList.remove('active')});
-            var t=$('#tab-'+b.dataset.tab);if(t)t.classList.add('active');
-            if(b.dataset.tab==='multiplayer'){connectWS();switchMPTab('lobby');playJoinSound();setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}
-            if(b.dataset.tab==='profile'){loadUser();}
-            vibrate();
-        });});
-
-        $$('#betGrid .bet-option').forEach(function(b){b.addEventListener('click',function(){if(state.isSpinning)return;$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});b.classList.add('selected');if(b.dataset.bet==='red')b.classList.add('red-sel');if(b.dataset.bet==='black')b.classList.add('black-sel');if(b.dataset.bet!=='number'){state.selectedBet=b.dataset.bet;$('#numberBetInput').style.display='none';}vibrate();});});
-        $$('[data-quick]').forEach(function(b){b.addEventListener('click',function(){$('#betAmount').value=b.dataset.quick;vibrate();});});
-        $('#freeSpinToggle').addEventListener('click',function(){if(state.freeSpins<=0){toast('Нет спинов');return}this.classList.toggle('checked');vibrate();});
-        $('#numberBetBtn').addEventListener('click',function(){var input=$('#numberBetInput');if(input.style.display==='none'){input.style.display='block';input.focus();this.classList.add('selected');state.selectedBet=String(input.value||17);}else{input.style.display='none';this.classList.remove('selected');state.selectedBet=null;}});
-        $('#numberBetInput').addEventListener('input',function(){var val=parseInt(this.value);if(val>=0&&val<=36){state.selectedBet=String(val);$$('#betGrid .bet-option').forEach(function(x){x.classList.remove('selected','red-sel','black-sel')});$('#numberBetBtn').classList.add('selected');}});
-
-        var lastSpinTime = 0;
-        $('#wheelClickArea').addEventListener('click', async function(){
-            var now = Date.now(); if(now - lastSpinTime < 800) return; lastSpinTime = now;
-            if(state.isSpinning)return;
-            if(!state.selectedBet){showCenterBanner('❌ Сделайте ставку!','lose');return;}
-            var useFree=$('#freeSpinToggle').classList.contains('checked');
-            var amount=parseFloat($('#betAmount').value)||0;
-            if(!useFree&&amount<=0){toast('Введите сумму!');return;}
-            if(!useFree&&amount>state.balance){toast('Недостаточно средств!');return;}
-            if(useFree&&state.freeSpins<=0){toast('Нет спинов!');return;}
-            state.isSpinning=true;$('#wheelClickArea').style.opacity='0.85';$('#rouletteBall').classList.remove('stopped');vibrate(30);
-            try{
-                var result=await api('/api/game_result',{bet_type:state.selectedBet,bet_amount:amount,use_free_spin:useFree});
-                buildRouletteRing();await spinWheel(result.number);
-                state.balance=result.new_balance;state.freeSpins=result.free_spins;state.totalGames=result.games_played;state.gamesSinceWithdrawal=result.games_since_withdrawal;
-                if(result.is_win)state.wins++;updateUI();
-                if(result.is_win){showCenterBanner('🎉 +'+result.win_amount.toFixed(2)+'$','win');$('#wheelClickArea').classList.add('win-anim');setTimeout(function(){$('#wheelClickArea').classList.remove('win-anim')},3000);spawnConfetti();playWinSound();}
-                else{showCenterBanner('😞 -'+amount.toFixed(2)+'$','lose');playLoseSound();}
-                var cn={red:'КРАСНОЕ',black:'ЧЁРНОЕ',green:'ZERO'};$('#resultNum').textContent=result.number;$('#resultNum').style.color=result.color==='red'?'#ff4444':result.color==='green'?'#ffd700':'#e8e8e8';$('#resultText').innerHTML='Выпало: <span style="font-weight:700;">'+result.number+' '+cn[result.color]+'</span>';$('#balanceCard').classList.add('wave');setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);
-            }catch(e){toast('Ошибка игры');loadUser();}
-            finally{state.isSpinning=false;$('#wheelClickArea').style.opacity='1';$('#freeSpinToggle').classList.remove('checked');$('#rouletteBall').classList.add('stopped');}
-        });
-
-        function spinWheel(targetNum){return new Promise(function(resolve){var ring=$('#rouletteRing');var idx=rNumbers.indexOf(targetNum);var sector=360/37,angle=sector*idx+sector/2;var spins=5+Math.floor(Math.random()*5);wheelRotation+=spins*360+(360-wheelRotation%360)+angle;ring.style.transform='rotate('+wheelRotation+'deg)';playSpinSound();setTimeout(resolve,5000);});}
-
-        // ═══════════════════════════════════════
-        // WEBSOCKET
-        // ═══════════════════════════════════════
-        function connectWS(){if(ws&&ws.readyState===WebSocket.OPEN)return;try{ws=new WebSocket(WS_URL+'/ws');ws.onopen=function(){wsReconnectDelay=1000;ws.send(JSON.stringify({action:'connect',user_id:user.id}));};ws.onmessage=function(e){try{handleWS(JSON.parse(e.data));}catch(ex){}};ws.onclose=function(){wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);setTimeout(connectWS,wsReconnectDelay);};}catch(e){setTimeout(connectWS,3000);}}
-        function sendWS(data){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else{toast('Нет соединения');connectWS();}}
-
-        function handleWS(data){
-            switch(data.type){
-                case 'mp_rooms_list':renderMPRooms(data.rooms||[]);break;
-                case 'mp_state':updateMPRoom(data);break;
-                case 'mp_timer':$('#mpRoomTimer').textContent=data.time;break;
-                case 'mp_spinning':mpSpinWheel(data);break;
-                case 'mp_result':showMPResult(data);break;
-                case 'mp_round_reset':resetMPRoom();break;
-                case 'mp_left_room':resetMPRoom();toast('Вы вышли');break;
-                case 'mp_player_joined':playJoinSound();toast('🎲 Игрок присоединился!');break;
-                case 'mp_player_raised':playRaiseSound();toast('⬆️ Ставка повышена!');break;
-                case 'connected':break;
-                case 'error':toast(data.message);break;
-                case 'pong':break;
+        
+        // Если не в Telegram — проверяем URL параметры (для тестов)
+        if (!user) {
+            const p = new URLSearchParams(window.location.search);
+            const uid = p.get('user_id');
+            if (uid && /^\d+$/.test(uid)) {
+                // Только если передан числовой ID в URL (для тестирования)
+                user = {
+                    id: parseInt(uid),
+                    username: 'player_' + uid,
+                    firstName: 'Player ' + uid
+                };
+            } else {
+                // Генерируем гостевой ID с префиксом guest_
+                const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                user = {
+                    id: guestId,
+                    username: 'Guest',
+                    firstName: 'Guest'
+                };
+                // Показываем предупреждение
+                setTimeout(() => {
+                    showCenterBanner('⚠️ Откройте через Telegram<br><span style="font-size:12px;">для полноценной игры</span>', 'lose');
+                }, 1500);
             }
         }
 
-        // ═══════════════════════════════════════
-        // MULTIPLAYER
-        // ═══════════════════════════════════════
-        var mpColors=['#FF6B6B','#4ECDC4','#FFEAA7','#DDA0DD','#45B7D1','#96CEB4','#FF8C00','#F7DC6F'];
-        var mpWheelRotation=0,lastMPResult=null;
+        const API = 'https://roulette-bot-8i8t.onrender.com';
+        const WS_URL = API.replace('https', 'wss').replace('http', 'ws');
+        
+        let state = {
+            balance: 0,
+            freeSpins: 0,
+            totalGames: 0,
+            wins: 0,
+            selectedBet: null,
+            isSpinning: false,
+            gamesSinceWithdrawal: 0
+        };
+        
+        let ws = null;
+        let wsReconnectAttempts = 0;
+        let maxWsReconnectDelay = 30000;
+        let wheelRotation = 0;
+        let mpWheelRotation = 0;
+        let mpMyRoom = null;
+        let mpState = {
+            players: [],
+            bank: 0,
+            timer: 30,
+            myBet: 0,
+            roundActive: false,
+            roomName: ''
+        };
+        
+        let audioCtx = null;
+        let pendingPaymentId = null;
+        let paymentCheckInterval = null;
 
-        function switchMPTab(tab){if(tab==='lobby'){$('#mpLobbyArea').classList.remove('hidden');$('#mpRoomArea').classList.add('hidden');mpMyRoom=null;}else{$('#mpLobbyArea').classList.add('hidden');$('#mpRoomArea').classList.remove('hidden');}}
+        // Сокращения для DOM
+        const $ = (s) => document.querySelector(s);
+        const $$ = (s) => document.querySelectorAll(s);
 
-        function renderMPRooms(rooms){
-            var list=$('#mpRoomsList');list.innerHTML='';
-            if(!rooms||!rooms.length){list.innerHTML='<div style="text-align:center;opacity:0.4;padding:16px;">Нет активных комнат</div>';return;}
-            rooms.forEach(function(r){
-                var card=document.createElement('div');card.className='room-card';
-                card.innerHTML='<div class="room-card-header"><div><div class="room-name">'+(r.name||'Комната')+'</div><div class="room-id">#'+r.room_id+'</div></div><span style="font-size:12px;color:#f7971e;">⏱ '+(r.timer||0)+'с</span></div><div class="room-stats"><span>👥 <span class="room-stat-value">'+(r.players_count||0)+'/6</span></span><span>💰 <span class="room-stat-value">'+(r.bank||0).toFixed(2)+'$</span></span><span>🔝 <span style="color:#ffd700;font-weight:700;">'+(r.top_bet||0).toFixed(2)+'$</span></span></div>';
-                card.addEventListener('click',function(){
-                    var amt=parseFloat($('#mpBetInput').value)||0;
-                    if(amt<1){toast('Минимум 1$');return;}
-                    if(amt>state.balance){toast('Недостаточно средств');return;}
-                    var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];
-                    sendWS({action:'mp_join_room',room_id:r.room_id,amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)]});
-                    mpMyRoom=r.room_id;state.balance-=amt;updateUI();switchMPTab('room');
+        // --- Утилиты ---
+        function showError(msg) {
+            const overlay = $('#loadingOverlay');
+            if (overlay) {
+                overlay.innerHTML = '<div style="font-size:40px;margin-bottom:10px;">⚠️</div><div class="error-text">' + msg + '</div><button class="retry-btn" onclick="location.reload()">🔄 Перезагрузить</button>';
+            }
+        }
+        
+        function hideLoading() {
+            const el = $('#loadingOverlay');
+            if (el && el.querySelector('.loading-spinner')) {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity 0.5s';
+                setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
+            }
+        }
+
+        function toast(msg) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transition = 'opacity 0.3s';
+                setTimeout(() => { if (t.parentNode) t.remove(); }, 300);
+            }, 2000);
+        }
+        
+        function vibrate(ms) {
+            if (navigator.vibrate) navigator.vibrate(ms || 12);
+        }
+        
+        function showCenterBanner(text, type) {
+            const banner = $('#centerBanner');
+            if (!banner) return;
+            banner.innerHTML = text;
+            banner.className = 'center-banner ' + type + ' show';
+            clearTimeout(banner._timeout);
+            banner._timeout = setTimeout(() => {
+                banner.className = 'center-banner ' + type;
+            }, 2200);
+        }
+
+        // --- Аудио ---
+        function getAudioContext() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                return audioCtx;
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        document.addEventListener('touchstart', () => getAudioContext(), { once: true });
+        document.addEventListener('click', () => getAudioContext(), { once: true });
+
+        function playSpinSound() {
+            try {
+                const a = getAudioContext();
+                if (!a) return;
+                const d = 5;
+                const sr = a.sampleRate;
+                const b = a.createBuffer(1, d * sr, sr);
+                const c = b.getChannelData(0);
+                for (let i = 0; i < c.length; i++) {
+                    const t = i / sr;
+                    const p = t / d;
+                    c[i] = (Math.random() * 2 - 1) * 0.015 * (1 - p * 0.7) * (0.3 + 0.7 * Math.sin(2 * Math.PI * (6 + p * 40) * t));
+                }
+                const src = a.createBufferSource();
+                src.buffer = b;
+                const flt = a.createBiquadFilter();
+                flt.type = 'bandpass';
+                flt.frequency.value = 500;
+                const g = a.createGain();
+                g.gain.setValueAtTime(0.04, a.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + d);
+                src.connect(flt);
+                flt.connect(g);
+                g.connect(a.destination);
+                src.start();
+                src.stop(a.currentTime + d);
+            } catch (e) {}
+        }
+        
+        function playWinSound() {
+            try {
+                const a = getAudioContext();
+                if (!a) return;
+                [784, 988, 1175].forEach((f, i) => {
+                    const o = a.createOscillator();
+                    const g = a.createGain();
+                    o.type = 'sine';
+                    o.frequency.value = f;
+                    const t = a.currentTime + i * 0.15;
+                    g.gain.setValueAtTime(0, t);
+                    g.gain.linearRampToValueAtTime(0.06, t + 0.03);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+                    o.connect(g);
+                    g.connect(a.destination);
+                    o.start(t);
+                    o.stop(t + 0.35);
+                });
+            } catch (e) {}
+        }
+        
+        function playLoseSound() {
+            try {
+                const a = getAudioContext();
+                if (!a) return;
+                const o = a.createOscillator();
+                const g = a.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(220, a.currentTime);
+                o.frequency.linearRampToValueAtTime(140, a.currentTime + 0.4);
+                g.gain.setValueAtTime(0.03, a.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.4);
+                o.connect(g);
+                g.connect(a.destination);
+                o.start();
+                o.stop(a.currentTime + 0.4);
+            } catch (e) {}
+        }
+        
+        function playJoinSound() {
+            try {
+                const a = getAudioContext();
+                if (!a) return;
+                const o = a.createOscillator();
+                const g = a.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(660, a.currentTime);
+                o.frequency.linearRampToValueAtTime(880, a.currentTime + 0.15);
+                g.gain.setValueAtTime(0.05, a.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.2);
+                o.connect(g);
+                g.connect(a.destination);
+                o.start();
+                o.stop(a.currentTime + 0.2);
+            } catch (e) {}
+        }
+        
+        function playRaiseSound() {
+            try {
+                const a = getAudioContext();
+                if (!a) return;
+                const o = a.createOscillator();
+                const g = a.createGain();
+                o.type = 'square';
+                o.frequency.setValueAtTime(440, a.currentTime);
+                o.frequency.linearRampToValueAtTime(660, a.currentTime + 0.1);
+                g.gain.setValueAtTime(0.04, a.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.15);
+                o.connect(g);
+                g.connect(a.destination);
+                o.start();
+                o.stop(a.currentTime + 0.15);
+            } catch (e) {}
+        }
+        
+        function spawnConfetti() {
+            try {
+                const colors = ['#ffd700', '#ff6b6b', '#4CAF50', '#f7971e'];
+                for (let i = 0; i < 30; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.style.left = (35 + Math.random() * 30) + '%';
+                    el.style.top = (45 + Math.random() * 15) + '%';
+                    el.style.width = (5 + Math.random() * 7) + 'px';
+                    el.style.height = (5 + Math.random() * 7) + 'px';
+                    el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    el.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+                    document.body.appendChild(el);
+                    setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
+                }
+            } catch (e) {}
+        }
+
+        // --- Частицы фона ---
+        const canvas = $('#particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height + 10;
+                this.size = 1 + Math.random() * 2.5;
+                this.speed = 0.2 + Math.random() * 0.8;
+                this.opacity = 0.1 + Math.random() * 0.3;
+                this.color = Math.random() < 0.5 ? '#ffd700' : (Math.random() < 0.5 ? '#4CAF50' : '#f7971e');
+                this.wobble = Math.random() * Math.PI * 2;
+            }
+            update() {
+                this.y -= this.speed;
+                this.x += Math.sin(this.wobble) * 0.2;
+                this.wobble += 0.02;
+                if (this.y < -10) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        for (let i = 0; i < 50; i++) {
+            const p = new Particle();
+            p.y = Math.random() * canvas.height;
+            particles.push(p);
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // --- API запросы ---
+        async function api(endpoint, data = {}) {
+            try {
+                const r = await fetch(`${API}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: user.id, ...data })
+                });
+                if (!r.ok) {
+                    const e = await r.json().catch(() => ({}));
+                    throw new Error(e.error || `HTTP ${r.status}`);
+                }
+                return await r.json();
+            } catch (e) {
+                toast('Ошибка: ' + e.message);
+                throw e;
+            }
+        }
+
+        async function loadUser() {
+            try {
+                const d = await api('/api/get_balance');
+                if (d.success) {
+                    state.balance = d.balance || 0;
+                    state.freeSpins = d.free_spins || 0;
+                    state.totalGames = d.total_games || 0;
+                    state.wins = d.wins || 0;
+                    state.gamesSinceWithdrawal = d.games_since_withdrawal || 0;
+                    updateUI();
+                }
+                hideLoading();
+            } catch (e) {
+                showError('Не удалось загрузить данные.<br>Проверьте соединение.');
+            }
+        }
+
+        function updateUI() {
+            const balanceDisplay = $('#balanceDisplay');
+            const profileBalance = $('#profileBalance');
+            const profileSpins = $('#profileSpins');
+            const profileGames = $('#profileGames');
+            const profileWins = $('#profileWins');
+            const profileName = $('#profileName');
+            const profileId = $('#profileId');
+            const freeSpinCount = $('#freeSpinCount');
+            const withdrawAvailable = $('#withdrawAvailable');
+            const withdrawGames = $('#withdrawGames');
+            
+            if (balanceDisplay) balanceDisplay.textContent = state.balance.toFixed(2) + '$';
+            if (profileBalance) profileBalance.textContent = state.balance.toFixed(2) + '$';
+            if (profileSpins) profileSpins.textContent = state.freeSpins;
+            if (profileGames) profileGames.textContent = state.totalGames;
+            if (profileWins) profileWins.textContent = state.wins;
+            if (profileName) profileName.textContent = user.firstName || 'Игрок';
+            if (profileId) profileId.textContent = typeof user.id === 'string' ? user.id.substring(0, 12) + '...' : user.id;
+            if (freeSpinCount) freeSpinCount.textContent = state.freeSpins;
+            if (withdrawAvailable) withdrawAvailable.textContent = state.balance.toFixed(2) + '$';
+            if (withdrawGames) withdrawGames.textContent = state.gamesSinceWithdrawal;
+            
+            if (state.selectedBet) {
+                try { localStorage.setItem('lastBet', state.selectedBet); } catch (e) {}
+            }
+            try { localStorage.setItem('lastBetAmount', $('#betAmount')?.value || ''); } catch (e) {}
+        }
+
+        // --- Восстановление сохранённых ставок ---
+        try {
+            const savedBet = localStorage.getItem('lastBet');
+            const savedAmount = localStorage.getItem('lastBetAmount');
+            if (savedBet) {
+                state.selectedBet = savedBet;
+                const btn = document.querySelector('.bet-option[data-bet="' + savedBet + '"]');
+                if (btn) btn.classList.add('selected');
+                if (savedBet === 'red') btn?.classList.add('red-sel');
+                if (savedBet === 'black') btn?.classList.add('black-sel');
+            }
+            if (savedAmount && $('#betAmount')) $('#betAmount').value = savedAmount;
+        } catch (e) {}
+
+        // --- Колесо рулетки ---
+        const rNumbers = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+        const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+
+        function buildRouletteRing() {
+            const ring = $('#rouletteRing');
+            if (!ring) return;
+            const slices = rNumbers.map((num, i) => {
+                const color = num === 0 ? '#27ae60' : (reds.includes(num) ? '#c0392b' : '#1a1a1a');
+                return color + ' ' + (i * (360 / 37)) + 'deg ' + ((i + 1) * (360 / 37)) + 'deg';
+            });
+            ring.style.background = 'conic-gradient(' + slices.join(',') + ')';
+        }
+        buildRouletteRing();
+
+        function spinWheel(targetNum) {
+            return new Promise((resolve) => {
+                const ring = $('#rouletteRing');
+                if (!ring) { resolve(); return; }
+                const idx = rNumbers.indexOf(targetNum);
+                const sector = 360 / 37;
+                const angle = sector * idx + sector / 2;
+                const spins = 5 + Math.floor(Math.random() * 5);
+                wheelRotation += spins * 360 + (360 - wheelRotation % 360) + angle;
+                ring.style.transform = 'rotate(' + wheelRotation + 'deg)';
+                playSpinSound();
+                setTimeout(resolve, 5000);
+            });
+        }
+
+        // --- Табы ---
+        $$('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                $$('.tab-btn').forEach(x => x.classList.remove('active'));
+                this.classList.add('active');
+                $$('.tab-content').forEach(x => x.classList.remove('active'));
+                const tab = $('#tab-' + this.dataset.tab);
+                if (tab) tab.classList.add('active');
+                
+                if (this.dataset.tab === 'multiplayer') {
+                    connectWS();
+                    switchMPTab('lobby');
+                    playJoinSound();
+                    setTimeout(() => { sendWS({ action: 'mp_get_rooms' }); }, 1000);
+                }
+                if (this.dataset.tab === 'profile') {
+                    loadUser();
+                }
+                vibrate();
+            });
+        });
+
+        // --- Выбор ставки ---
+        $$('#betGrid .bet-option').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (state.isSpinning) return;
+                $$('#betGrid .bet-option').forEach(x => x.classList.remove('selected', 'red-sel', 'black-sel'));
+                this.classList.add('selected');
+                if (this.dataset.bet === 'red') this.classList.add('red-sel');
+                if (this.dataset.bet === 'black') this.classList.add('black-sel');
+                if (this.dataset.bet !== 'number') {
+                    state.selectedBet = this.dataset.bet;
+                    const numInput = $('#numberBetInput');
+                    if (numInput) numInput.style.display = 'none';
+                }
+                vibrate();
+            });
+        });
+
+        $$('[data-quick]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const betAmount = $('#betAmount');
+                if (betAmount) betAmount.value = this.dataset.quick;
+                vibrate();
+            });
+        });
+
+        const freeSpinToggle = $('#freeSpinToggle');
+        if (freeSpinToggle) {
+            freeSpinToggle.addEventListener('click', function() {
+                if (state.freeSpins <= 0) {
+                    toast('Нет спинов');
+                    return;
+                }
+                this.classList.toggle('checked');
+                vibrate();
+            });
+        }
+
+        const numberBetBtn = $('#numberBetBtn');
+        const numberBetInput = $('#numberBetInput');
+        
+        if (numberBetBtn) {
+            numberBetBtn.addEventListener('click', function() {
+                if (!numberBetInput) return;
+                if (numberBetInput.style.display === 'none') {
+                    numberBetInput.style.display = 'block';
+                    numberBetInput.focus();
+                    this.classList.add('selected');
+                    state.selectedBet = String(numberBetInput.value || 17);
+                } else {
+                    numberBetInput.style.display = 'none';
+                    this.classList.remove('selected');
+                    state.selectedBet = null;
+                }
+            });
+        }
+
+        if (numberBetInput) {
+            numberBetInput.addEventListener('input', function() {
+                const val = parseInt(this.value);
+                if (val >= 0 && val <= 36) {
+                    state.selectedBet = String(val);
+                    $$('#betGrid .bet-option').forEach(x => x.classList.remove('selected', 'red-sel', 'black-sel'));
+                    if (numberBetBtn) numberBetBtn.classList.add('selected');
+                }
+            });
+        }
+
+        // --- Игра в одиночную рулетку ---
+        let lastSpinTime = 0;
+        const wheelClickArea = $('#wheelClickArea');
+        
+        if (wheelClickArea) {
+            wheelClickArea.addEventListener('click', async function() {
+                const now = Date.now();
+                if (now - lastSpinTime < 800) return;
+                lastSpinTime = now;
+                
+                if (state.isSpinning) return;
+                if (!state.selectedBet) {
+                    showCenterBanner('❌ Сделайте ставку!', 'lose');
+                    return;
+                }
+                
+                const useFree = freeSpinToggle?.classList.contains('checked') || false;
+                const betAmountInput = $('#betAmount');
+                const amount = parseFloat(betAmountInput?.value) || 0;
+                
+                if (!useFree && amount <= 0) {
+                    toast('Введите сумму!');
+                    return;
+                }
+                if (!useFree && amount > state.balance) {
+                    toast('Недостаточно средств!');
+                    return;
+                }
+                if (useFree && state.freeSpins <= 0) {
+                    toast('Нет спинов!');
+                    return;
+                }
+                
+                state.isSpinning = true;
+                if (wheelClickArea) wheelClickArea.style.opacity = '0.85';
+                const ball = $('#rouletteBall');
+                if (ball) ball.classList.remove('stopped');
+                vibrate(30);
+                
+                try {
+                    const result = await api('/api/game_result', {
+                        bet_type: state.selectedBet,
+                        bet_amount: amount,
+                        use_free_spin: useFree
+                    });
+                    
+                    buildRouletteRing();
+                    await spinWheel(result.number);
+                    
+                    state.balance = result.new_balance;
+                    state.freeSpins = result.free_spins;
+                    state.totalGames = result.games_played;
+                    state.gamesSinceWithdrawal = result.games_since_withdrawal;
+                    if (result.is_win) state.wins++;
+                    updateUI();
+                    
+                    const resultNum = $('#resultNum');
+                    const resultText = $('#resultText');
+                    const balanceCard = $('#balanceCard');
+                    
+                    if (result.is_win) {
+                        showCenterBanner('🎉 +' + result.win_amount.toFixed(2) + '$', 'win');
+                        if (wheelClickArea) {
+                            wheelClickArea.classList.add('win-anim');
+                            setTimeout(() => { if (wheelClickArea) wheelClickArea.classList.remove('win-anim'); }, 3000);
+                        }
+                        spawnConfetti();
+                        playWinSound();
+                    } else {
+                        showCenterBanner('😞 -' + amount.toFixed(2) + '$', 'lose');
+                        playLoseSound();
+                    }
+                    
+                    const cn = { red: 'КРАСНОЕ', black: 'ЧЁРНОЕ', green: 'ZERO' };
+                    if (resultNum) {
+                        resultNum.textContent = result.number;
+                        resultNum.style.color = result.color === 'red' ? '#ff4444' : (result.color === 'green' ? '#ffd700' : '#e8e8e8');
+                    }
+                    if (resultText) {
+                        resultText.innerHTML = 'Выпало: <span style="font-weight:700;">' + result.number + ' ' + (cn[result.color] || '') + '</span>';
+                    }
+                    if (balanceCard) {
+                        balanceCard.classList.add('wave');
+                        setTimeout(() => { if (balanceCard) balanceCard.classList.remove('wave'); }, 600);
+                    }
+                } catch (e) {
+                    toast('Ошибка игры');
+                    loadUser();
+                } finally {
+                    state.isSpinning = false;
+                    if (wheelClickArea) wheelClickArea.style.opacity = '1';
+                    if (freeSpinToggle) freeSpinToggle.classList.remove('checked');
+                    if (ball) ball.classList.add('stopped');
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════
+        // WEBSOCKET МУЛЬТИПЛЕЕРА
+        // ═══════════════════════════════════════
+        
+        function connectWS() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+            
+            try {
+                ws = new WebSocket(WS_URL + '/ws');
+                
+                ws.onopen = () => {
+                    wsReconnectAttempts = 0;
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ action: 'connect', user_id: user.id }));
+                    }
+                };
+                
+                ws.onmessage = (e) => {
+                    try {
+                        handleWS(JSON.parse(e.data));
+                    } catch (ex) {
+                        console.error('WS parse error:', ex);
+                    }
+                };
+                
+                ws.onclose = (e) => {
+                    ws = null;
+                    wsReconnectAttempts++;
+                    const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts), maxWsReconnectDelay);
+                    setTimeout(connectWS, delay);
+                };
+                
+                ws.onerror = (e) => {
+                    console.error('WS error:', e);
+                };
+            } catch (e) {
+                wsReconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts), maxWsReconnectDelay);
+                setTimeout(connectWS, delay);
+            }
+        }
+
+        function sendWS(data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+            } else {
+                toast('Нет соединения с сервером');
+                connectWS();
+            }
+        }
+
+        function handleWS(data) {
+            switch (data.type) {
+                case 'mp_rooms_list':
+                    renderMPRooms(data.rooms || []);
+                    break;
+                case 'mp_state':
+                    updateMPRoom(data);
+                    break;
+                case 'mp_timer':
+                    const timer = $('#mpRoomTimer');
+                    if (timer) timer.textContent = data.time;
+                    break;
+                case 'mp_spinning':
+                    mpSpinWheel(data);
+                    break;
+                case 'mp_result':
+                    showMPResult(data);
+                    break;
+                case 'mp_round_reset':
+                    resetMPRoom();
+                    break;
+                case 'mp_left_room':
+                    resetMPRoom();
+                    toast('Вы вышли из комнаты');
+                    break;
+                case 'mp_player_joined':
+                    playJoinSound();
+                    toast('🎲 Игрок присоединился!');
+                    break;
+                case 'mp_player_raised':
+                    playRaiseSound();
+                    toast('⬆️ Ставка повышена!');
+                    break;
+                case 'connected':
+                    break;
+                case 'error':
+                    toast(data.message);
+                    break;
+                case 'pong':
+                    break;
+            }
+        }
+
+        // --- Переключение вкладок мультиплеера ---
+        function switchMPTab(tab) {
+            const lobby = $('#mpLobbyArea');
+            const room = $('#mpRoomArea');
+            if (tab === 'lobby') {
+                if (lobby) lobby.classList.remove('hidden');
+                if (room) room.classList.add('hidden');
+                mpMyRoom = null;
+            } else {
+                if (lobby) lobby.classList.add('hidden');
+                if (room) room.classList.remove('hidden');
+            }
+        }
+
+        const mpColors = ['#FF6B6B', '#4ECDC4', '#FFEAA7', '#DDA0DD', '#45B7D1', '#96CEB4', '#FF8C00', '#F7DC6F'];
+
+        function renderMPRooms(rooms) {
+            const list = $('#mpRoomsList');
+            if (!list) return;
+            
+            list.innerHTML = '';
+            if (!rooms || rooms.length === 0) {
+                list.innerHTML = '<div style="text-align:center;opacity:0.4;padding:16px;">Нет активных комнат</div>';
+                return;
+            }
+            
+            rooms.forEach((r) => {
+                const card = document.createElement('div');
+                card.className = 'room-card';
+                card.innerHTML = 
+                    '<div class="room-card-header">' +
+                        '<div>' +
+                            '<div class="room-name">' + (r.name || 'Комната') + '</div>' +
+                            '<div class="room-id">#' + r.room_id + '</div>' +
+                        '</div>' +
+                        '<span style="font-size:12px;color:#f7971e;">⏱ ' + (r.timer || 0) + 'с</span>' +
+                    '</div>' +
+                    '<div class="room-stats">' +
+                        '<span>👥 <span class="room-stat-value">' + (r.players_count || 0) + '/6</span></span>' +
+                        '<span>💰 <span class="room-stat-value">' + (r.bank || 0).toFixed(2) + '$</span></span>' +
+                        '<span>🔝 <span style="color:#ffd700;font-weight:700;">' + (r.top_bet || 0).toFixed(2) + '$</span></span>' +
+                    '</div>';
+                
+                card.addEventListener('click', () => {
+                    const amt = parseFloat($('#mpBetInput')?.value) || 0;
+                    if (amt < 1) { toast('Минимум 1$'); return; }
+                    if (amt > state.balance) { toast('Недостаточно средств'); return; }
+                    
+                    const avatars = ['🎲', '🎯', '🎰', '🃏', '🎪', '👑', '💎', '🌟', '🔥', '🍀'];
+                    sendWS({
+                        action: 'mp_join_room',
+                        room_id: r.room_id,
+                        amount: amt,
+                        nickname: user.firstName || 'Player',
+                        avatar: avatars[Math.floor(Math.random() * 10)]
+                    });
+                    mpMyRoom = r.room_id;
+                    state.balance -= amt;
+                    updateUI();
+                    switchMPTab('room');
                 });
                 list.appendChild(card);
             });
         }
 
-        function updateMPRoom(data){
-            if(!mpMyRoom)mpMyRoom=data.room_id;
-            $('#mpRoomId').textContent=data.room_id||mpMyRoom;
-            $('#mpRoomName').textContent=data.room_name||'Комната';
-            $('#mpRoomBank').textContent=(data.bank||0).toFixed(2);
-            $('#mpRoomTimer').textContent=data.timer||0;
-            mpState.players=data.players||[];mpState.bank=data.bank||0;mpState.timer=data.timer||0;mpState.myBet=data.my_bet||0;mpState.roundActive=data.round_active;
-            $('#mpRaiseBetBtn').disabled=!mpState.roundActive;
-            drawMPWheel();renderMPLeaderboard();
+        function updateMPRoom(data) {
+            if (!mpMyRoom) mpMyRoom = data.room_id;
+            
+            const roomId = $('#mpRoomId');
+            const roomName = $('#mpRoomName');
+            const roomBank = $('#mpRoomBank');
+            const roomTimer = $('#mpRoomTimer');
+            const raiseBtn = $('#mpRaiseBetBtn');
+            
+            if (roomId) roomId.textContent = data.room_id || mpMyRoom;
+            if (roomName) roomName.textContent = data.room_name || 'Комната';
+            if (roomBank) roomBank.textContent = (data.bank || 0).toFixed(2);
+            if (roomTimer) roomTimer.textContent = data.timer || 0;
+            
+            mpState.players = data.players || [];
+            mpState.bank = data.bank || 0;
+            mpState.timer = data.timer || 0;
+            mpState.myBet = data.my_bet || 0;
+            mpState.roundActive = data.round_active;
+            
+            if (raiseBtn) raiseBtn.disabled = !mpState.roundActive;
+            
+            drawMPWheel();
+            renderMPLeaderboard();
         }
 
-        function drawMPWheel(){
-            var ring=$('#mpWheelRing');var total=mpState.bank||1;var slices=[],usedDeg=0;
-            if(mpState.players.length===0){ring.style.background='#1a1a1a';return;}
-            mpState.players.forEach(function(p,i){var pct=p.bet/total;var deg=pct*360;slices.push((p.color||mpColors[i%mpColors.length])+' '+usedDeg+'deg '+(usedDeg+deg)+'deg');usedDeg+=deg;});
-            if(usedDeg<360)slices.push('#1a1a1a '+usedDeg+'deg 360deg');
-            ring.style.background='conic-gradient('+slices.join(',')+')';
+        function drawMPWheel() {
+            const ring = $('#mpWheelRing');
+            if (!ring) return;
+            
+            const total = mpState.bank || 1;
+            
+            if (mpState.players.length === 0) {
+                ring.style.background = '#1a1a1a';
+                return;
+            }
+            
+            let slices = [];
+            let usedDeg = 0;
+            
+            mpState.players.forEach((p, i) => {
+                const pct = p.bet / total;
+                const deg = pct * 360;
+                slices.push((p.color || mpColors[i % mpColors.length]) + ' ' + usedDeg + 'deg ' + (usedDeg + deg) + 'deg');
+                usedDeg += deg;
+            });
+            
+            if (usedDeg < 360) {
+                slices.push('#1a1a1a ' + usedDeg + 'deg 360deg');
+            }
+            
+            ring.style.background = 'conic-gradient(' + slices.join(',') + ')';
         }
 
-        function renderMPLeaderboard(){
-            var lb=$('#mpLeaderboard');
-            if(!mpState.players.length){lb.innerHTML='<div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>';return;}
-            var sorted=[].concat(mpState.players).sort(function(a,b){return b.bet-a.bet;});
-            lb.innerHTML=sorted.map(function(p,i){var pct=mpState.bank>0?((p.bet/mpState.bank)*100).toFixed(1):0;var isMe=p.user_id===user.id;return'<div class="mp-player-row'+(isMe?' active-player':'')+'"><div><span class="mp-player-avatar">'+(p.avatar||'🎲')+'</span><span class="mp-player-color" style="background:'+(p.color||mpColors[i%mpColors.length])+'"></span>'+(p.nickname||'Игрок')+(isMe?' (вы)':'')+'</div><div style="font-weight:700;">'+p.bet.toFixed(2)+'$ <span style="font-size:10px;opacity:0.5;">('+pct+'%)</span></div></div>';}).join('');
+        function renderMPLeaderboard() {
+            const lb = $('#mpLeaderboard');
+            if (!lb) return;
+            
+            if (!mpState.players.length) {
+                lb.innerHTML = '<div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>';
+                return;
+            }
+            
+            const sorted = [...mpState.players].sort((a, b) => b.bet - a.bet);
+            lb.innerHTML = sorted.map((p, i) => {
+                const pct = mpState.bank > 0 ? ((p.bet / mpState.bank) * 100).toFixed(1) : 0;
+                const isMe = p.user_id === user.id;
+                return '<div class="mp-player-row' + (isMe ? ' active-player' : '') + '">' +
+                    '<div>' +
+                        '<span class="mp-player-avatar">' + (p.avatar || '🎲') + '</span>' +
+                        '<span class="mp-player-color" style="background:' + (p.color || mpColors[i % mpColors.length]) + '"></span>' +
+                        (p.nickname || 'Игрок') + (isMe ? ' (вы)' : '') +
+                    '</div>' +
+                    '<div style="font-weight:700;">' + p.bet.toFixed(2) + '$ <span style="font-size:10px;opacity:0.5;">(' + pct + '%)</span></div>' +
+                '</div>';
+            }).join('');
         }
 
-        function mpSpinWheel(data){var ring=$('#mpWheelRing');var targetDeg=data.winner_angle||(Math.random()*360);var spins=5+Math.floor(Math.random()*5);mpWheelRotation+=spins*360+(360-mpWheelRotation%360)+targetDeg;ring.style.transform='rotate('+mpWheelRotation+'deg)';playSpinSound();$('#mpRaiseBetBtn').disabled=true;}
+        function mpSpinWheel(data) {
+            const ring = $('#mpWheelRing');
+            if (!ring) return;
+            
+            const targetDeg = data.winner_angle || (Math.random() * 360);
+            const spins = 5 + Math.floor(Math.random() * 5);
+            mpWheelRotation += spins * 360 + (360 - mpWheelRotation % 360) + targetDeg;
+            ring.style.transform = 'rotate(' + mpWheelRotation + 'deg)';
+            playSpinSound();
+            
+            const raiseBtn = $('#mpRaiseBetBtn');
+            if (raiseBtn) raiseBtn.disabled = true;
+        }
 
-        function showMPResult(data){
-            if(data.winner_id===user.id){showCenterBanner('🏆 +'+data.win_amount.toFixed(2)+'$','win');spawnConfetti();playWinSound();$('#mpClaimBtn').classList.remove('hidden');}
-            else{showCenterBanner('😢 Победил: '+(data.winner_nickname||'Игрок'),'lose');playLoseSound();$('#mpClaimBtn').classList.add('hidden');}
+        function showMPResult(data) {
+            if (data.winner_id === user.id) {
+                showCenterBanner('🏆 +' + data.win_amount.toFixed(2) + '$', 'win');
+                spawnConfetti();
+                playWinSound();
+                const claimBtn = $('#mpClaimBtn');
+                if (claimBtn) claimBtn.classList.remove('hidden');
+            } else {
+                showCenterBanner('😢 Победил: ' + (data.winner_nickname || 'Игрок'), 'lose');
+                playLoseSound();
+                const claimBtn = $('#mpClaimBtn');
+                if (claimBtn) claimBtn.classList.add('hidden');
+            }
             loadUser();
         }
 
-        $('#mpClaimBtn').addEventListener('click',function(){resetMPRoom();$('#mpClaimBtn').classList.add('hidden');toast('✅ Выигрыш зачислен!');loadUser();});
-
-        function resetMPRoom(){
-            mpState={players:[],bank:0,timer:30,myBet:0,roundActive:false};mpMyRoom=null;
-            $('#mpRoomId').textContent='---';$('#mpRoomName').textContent='Комната';$('#mpRoomBank').textContent='0.00';$('#mpRoomTimer').textContent='30';
-            $('#mpRaiseBetBtn').disabled=false;$('#mpClaimBtn').classList.add('hidden');
-            var ring=$('#mpWheelRing');ring.style.background='#1a1a1a';ring.style.transform='rotate(0deg)';mpWheelRotation=0;
-            renderMPLeaderboard();switchMPTab('lobby');sendWS({action:'mp_get_rooms'});
+        function resetMPRoom() {
+            mpState = { players: [], bank: 0, timer: 30, myBet: 0, roundActive: false, roomName: '' };
+            mpMyRoom = null;
+            
+            const roomId = $('#mpRoomId');
+            const roomName = $('#mpRoomName');
+            const roomBank = $('#mpRoomBank');
+            const roomTimer = $('#mpRoomTimer');
+            const raiseBtn = $('#mpRaiseBetBtn');
+            const claimBtn = $('#mpClaimBtn');
+            const ring = $('#mpWheelRing');
+            
+            if (roomId) roomId.textContent = '---';
+            if (roomName) roomName.textContent = 'Комната';
+            if (roomBank) roomBank.textContent = '0.00';
+            if (roomTimer) roomTimer.textContent = '30';
+            if (raiseBtn) raiseBtn.disabled = false;
+            if (claimBtn) claimBtn.classList.add('hidden');
+            if (ring) {
+                ring.style.background = '#1a1a1a';
+                ring.style.transform = 'rotate(0deg)';
+            }
+            mpWheelRotation = 0;
+            
+            renderMPLeaderboard();
+            switchMPTab('lobby');
+            sendWS({ action: 'mp_get_rooms' });
         }
 
-        $('#mpCreateRoomBtn').addEventListener('click',function(){
-            var amt=parseFloat($('#mpBetInput').value)||0;var name=$('#mpBetInput').value||'Комната';
-            if(amt<1){toast('Минимум 1$');return;}if(amt>state.balance){toast('Недостаточно средств');return;}
-            var avatars=['🎲','🎯','🎰','🃏','🎪','👑','💎','🌟','🔥','🍀'];
-            sendWS({action:'mp_create_room',amount:amt,nickname:user.firstName||'Player',avatar:avatars[Math.floor(Math.random()*10)],room_name:user.firstName||'Комната'});
-            state.balance-=amt;updateUI();switchMPTab('room');$(this).disabled=true;setTimeout(function(){$('#mpCreateRoomBtn').disabled=false;},2000);
+        // --- Кнопки мультиплеера ---
+        const mpClaimBtn = $('#mpClaimBtn');
+        if (mpClaimBtn) {
+            mpClaimBtn.addEventListener('click', () => {
+                resetMPRoom();
+                if (mpClaimBtn) mpClaimBtn.classList.add('hidden');
+                toast('✅ Выигрыш зачислен!');
+                loadUser();
+            });
+        }
+
+        const mpCreateRoomBtn = $('#mpCreateRoomBtn');
+        if (mpCreateRoomBtn) {
+            mpCreateRoomBtn.addEventListener('click', function() {
+                const betInput = $('#mpBetInput');
+                const amt = parseFloat(betInput?.value) || 0;
+                
+                if (amt < 1) { toast('Минимум 1$'); return; }
+                if (amt > state.balance) { toast('Недостаточно средств'); return; }
+                
+                const avatars = ['🎲', '🎯', '🎰', '🃏', '🎪', '👑', '💎', '🌟', '🔥', '🍀'];
+                sendWS({
+                    action: 'mp_create_room',
+                    amount: amt,
+                    nickname: user.firstName || 'Player',
+                    avatar: avatars[Math.floor(Math.random() * 10)],
+                    room_name: (user.firstName || 'Player') + "'s room"
+                });
+                state.balance -= amt;
+                updateUI();
+                switchMPTab('room');
+                this.disabled = true;
+                setTimeout(() => { if (mpCreateRoomBtn) mpCreateRoomBtn.disabled = false; }, 2000);
+            });
+        }
+
+        const mpRaiseBetBtn = $('#mpRaiseBetBtn');
+        if (mpRaiseBetBtn) {
+            mpRaiseBetBtn.addEventListener('click', function() {
+                const raiseInput = $('#mpRaiseInput');
+                const extra = parseFloat(raiseInput?.value) || 0;
+                
+                if (extra < 0.1) { toast('Введите сумму повышения'); return; }
+                if (mpState.myBet + extra > state.balance) { toast('Недостаточно средств'); return; }
+                if (!mpMyRoom) { toast('Вы не в комнате'); return; }
+                
+                sendWS({ action: 'mp_raise_bet', room_id: mpMyRoom, amount: extra });
+                this.disabled = true;
+                setTimeout(() => { if (mpRaiseBetBtn) mpRaiseBetBtn.disabled = false; }, 2000);
+            });
+        }
+
+        const mpLeaveRoomBtn = $('#mpLeaveRoomBtn');
+        if (mpLeaveRoomBtn) {
+            mpLeaveRoomBtn.addEventListener('click', () => {
+                if (!mpMyRoom) return;
+                sendWS({ action: 'mp_leave_room', room_id: mpMyRoom });
+                resetMPRoom();
+                loadUser();
+            });
+        }
+
+        // --- Депозит / Вывод ---
+        function showDeposit() {
+            const modal = $('#depositModal');
+            const amountInput = $('#depositAmount');
+            const status = $('#depositStatus');
+            
+            if (modal) modal.classList.add('active');
+            if (amountInput) amountInput.value = 10;
+            if (status) status.textContent = '';
+            
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+                paymentCheckInterval = null;
+            }
+        }
+
+        const depositCloseBtn = $('#depositCloseBtn');
+        if (depositCloseBtn) {
+            depositCloseBtn.addEventListener('click', () => {
+                const modal = $('#depositModal');
+                if (modal) modal.classList.remove('active');
+                if (paymentCheckInterval) {
+                    clearInterval(paymentCheckInterval);
+                    paymentCheckInterval = null;
+                }
+            });
+        }
+
+        const depositConfirmBtn = $('#depositConfirmBtn');
+        if (depositConfirmBtn) {
+            depositConfirmBtn.addEventListener('click', async function() {
+                const amountInput = $('#depositAmount');
+                const amount = parseFloat(amountInput?.value) || 0;
+                
+                if (amount <= 0) { toast('Введите сумму'); return; }
+                
+                const btn = this;
+                btn.disabled = true;
+                btn.textContent = '⏳';
+                
+                try {
+                    const r = await api('/api/create_invoice', { amount: amount });
+                    if (r.success) {
+                        pendingPaymentId = r.payment_id;
+                        const status = $('#depositStatus');
+                        if (status) status.textContent = '⏳ Ожидание оплаты...';
+                        
+                        if (tg) {
+                            tg.openLink(r.invoice_url);
+                        } else {
+                            window.open(r.invoice_url, '_blank');
+                        }
+                        
+                        if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+                        paymentCheckInterval = setInterval(async () => {
+                            if (!pendingPaymentId) {
+                                clearInterval(paymentCheckInterval);
+                                paymentCheckInterval = null;
+                                return;
+                            }
+                            try {
+                                const check = await api('/api/check_payment', { payment_id: pendingPaymentId });
+                                if (check.success && check.status === 'paid') {
+                                    state.balance = check.new_balance;
+                                    updateUI();
+                                    const balanceDisplay = $('#balanceDisplay');
+                                    const balanceCard = $('#balanceCard');
+                                    const depositStatus = $('#depositStatus');
+                                    
+                                    if (balanceDisplay) balanceDisplay.textContent = check.new_balance.toFixed(2) + '$';
+                                    if (balanceCard) {
+                                        balanceCard.classList.add('wave');
+                                        setTimeout(() => { if (balanceCard) balanceCard.classList.remove('wave'); }, 600);
+                                    }
+                                    if (depositStatus) depositStatus.textContent = '✅ Оплачено! +' + check.amount + '$';
+                                    
+                                    pendingPaymentId = null;
+                                    clearInterval(paymentCheckInterval);
+                                    paymentCheckInterval = null;
+                                    btn.textContent = 'Оплатить';
+                                    btn.disabled = false;
+                                    
+                                    setTimeout(() => {
+                                        const modal = $('#depositModal');
+                                        if (modal) modal.classList.remove('active');
+                                    }, 2000);
+                                }
+                            } catch (e) {
+                                console.error('Payment check error:', e);
+                            }
+                        }, 5000);
+                        
+                        btn.textContent = 'Оплатить (ожидание)';
+                    } else {
+                        const status = $('#depositStatus');
+                        if (status) status.textContent = '❌ Ошибка создания платежа';
+                        btn.disabled = false;
+                        btn.textContent = 'Оплатить';
+                    }
+                } catch (e) {
+                    const status = $('#depositStatus');
+                    if (status) status.textContent = '❌ Ошибка';
+                    btn.disabled = false;
+                    btn.textContent = 'Оплатить';
+                }
+            });
+        }
+
+        const profileDepositBtn = $('#profileDepositBtn');
+        if (profileDepositBtn) {
+            profileDepositBtn.addEventListener('click', showDeposit);
+        }
+
+        function showWithdraw() {
+            if (state.gamesSinceWithdrawal < 2) {
+                toast('Сыграйте минимум 2 игры');
+                return;
+            }
+            if (state.balance <= 0) {
+                toast('Нет средств');
+                return;
+            }
+            updateUI();
+            const modal = $('#withdrawModal');
+            if (modal) modal.classList.add('active');
+        }
+
+        const withdrawCloseBtn = $('#withdrawCloseBtn');
+        if (withdrawCloseBtn) {
+            withdrawCloseBtn.addEventListener('click', () => {
+                const modal = $('#withdrawModal');
+                if (modal) modal.classList.remove('active');
+            });
+        }
+
+        const withdrawConfirmBtn = $('#withdrawConfirmBtn');
+        if (withdrawConfirmBtn) {
+            withdrawConfirmBtn.addEventListener('click', async function() {
+                const amountInput = $('#withdrawAmount');
+                const walletInput = $('#withdrawWallet');
+                const amount = parseFloat(amountInput?.value) || 0;
+                const wallet = walletInput?.value?.trim() || '';
+                
+                if (amount <= 0) { toast('Введите сумму'); return; }
+                if (!wallet) { toast('Введите адрес или @username'); return; }
+                if (amount > state.balance) { toast('Недостаточно средств'); return; }
+                
+                try {
+                    const r = await api('/api/withdraw', { amount: amount, wallet: wallet });
+                    if (r.success) {
+                        state.balance = r.new_balance;
+                        updateUI();
+                        const modal = $('#withdrawModal');
+                        if (modal) modal.classList.remove('active');
+                        toast('✅ Заявка отправлена!');
+                    }
+                } catch (e) {
+                    console.error('Withdraw error:', e);
+                }
+            });
+        }
+
+        const profileWithdrawBtn = $('#profileWithdrawBtn');
+        if (profileWithdrawBtn) {
+            profileWithdrawBtn.addEventListener('click', showWithdraw);
+        }
+
+        // --- Закрытие модалок по клику вне ---
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                    if (paymentCheckInterval && overlay.id === 'depositModal') {
+                        clearInterval(paymentCheckInterval);
+                        paymentCheckInterval = null;
+                    }
+                }
+            });
         });
 
-        $('#mpRaiseBetBtn').addEventListener('click',function(){
-            var extra=parseFloat($('#mpRaiseInput').value)||0;
-            if(extra<0.1){toast('Введите сумму повышения');return;}
-            if(mpState.myBet+extra>state.balance){toast('Недостаточно средств');return;}
-            if(!mpMyRoom){toast('Вы не в комнате');return;}
-            sendWS({action:'mp_raise_bet',room_id:mpMyRoom,amount:extra});
-            $(this).disabled=true;setTimeout(function(){$('#mpRaiseBetBtn').disabled=false;},2000);
-        });
-
-        $('#mpLeaveRoomBtn').addEventListener('click',function(){if(!mpMyRoom)return;sendWS({action:'mp_leave_room',room_id:mpMyRoom});resetMPRoom();loadUser();});
-
-        // DEPOSIT / WITHDRAW
-        function showDeposit(){$('#depositModal').classList.add('active');$('#depositAmount').value=10;$('#depositStatus').textContent='';if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}}
-        $('#depositCloseBtn').addEventListener('click',function(){$('#depositModal').classList.remove('active');if(paymentCheckInterval){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}});
-        $('#depositConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#depositAmount').value)||0;if(amount<=0){toast('Введите сумму');return;}var btn=this;btn.disabled=true;btn.textContent='⏳';try{var r=await api('/api/create_invoice',{amount:amount});if(r.success){pendingPaymentId=r.payment_id;$('#depositStatus').textContent='⏳ Ожидание оплаты...';if(tg){tg.openLink(r.invoice_url);}else{window.open(r.invoice_url,'_blank');}if(paymentCheckInterval)clearInterval(paymentCheckInterval);paymentCheckInterval=setInterval(async function(){if(!pendingPaymentId){clearInterval(paymentCheckInterval);return;}try{var check=await api('/api/check_payment',{payment_id:pendingPaymentId});if(check.success&&check.status==='paid'){state.balance=check.new_balance;updateUI();$('#balanceDisplay').textContent=check.new_balance.toFixed(2)+'$';$('#balanceCard').classList.add('wave');setTimeout(function(){$('#balanceCard').classList.remove('wave')},600);$('#depositStatus').textContent='✅ Оплачено! +'+check.amount+'$';pendingPaymentId=null;clearInterval(paymentCheckInterval);paymentCheckInterval=null;btn.textContent='Оплатить';setTimeout(function(){$('#depositModal').classList.remove('active');},2000);}}catch(e){}},5000);btn.textContent='Оплатить (ожидание)';}else{$('#depositStatus').textContent='❌ Ошибка';}}catch(e){$('#depositStatus').textContent='❌ Ошибка';}btn.disabled=false;});
-        $('#profileDepositBtn').addEventListener('click',showDeposit);
-
-        function showWithdraw(){if(state.gamesSinceWithdrawal<2){toast('Сыграйте минимум 2 игры');return;}if(state.balance<=0){toast('Нет средств');return;}updateUI();$('#withdrawModal').classList.add('active');}
-        $('#withdrawCloseBtn').addEventListener('click',function(){$('#withdrawModal').classList.remove('active');});
-        $('#withdrawConfirmBtn').addEventListener('click',async function(){var amount=parseFloat($('#withdrawAmount').value)||0;var wallet=$('#withdrawWallet').value.trim();if(amount<=0){toast('Введите сумму');return;}if(!wallet){toast('Введите адрес или @username');return;}if(amount>state.balance){toast('Недостаточно средств');return;}try{var r=await api('/api/withdraw',{amount:amount,wallet:wallet});if(r.success){state.balance=r.new_balance;updateUI();$('#withdrawModal').classList.remove('active');toast('✅ Заявка отправлена!');}}catch(e){}});
-        $('#profileWithdrawBtn').addEventListener('click',showWithdraw);
-
-        document.querySelectorAll('.modal-overlay').forEach(function(overlay){overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.classList.remove('active');if(paymentCheckInterval&&overlay.id==='depositModal'){clearInterval(paymentCheckInterval);paymentCheckInterval=null;}}});});
-
+        // --- Инициализация ---
         loadUser();
-        var urlParams=new URLSearchParams(window.location.search);
-        if(urlParams.get('mode')==='multiplayer'){$$('.tab-btn').forEach(function(x){x.classList.remove('active');});var m=document.querySelector('.tab-btn[data-tab="multiplayer"]');if(m){m.classList.add('active');$$('.tab-content').forEach(function(x){x.classList.remove('active');});$('#tab-multiplayer').classList.add('active');connectWS();switchMPTab('lobby');setTimeout(function(){sendWS({action:'mp_get_rooms'});},1000);}}
-        setInterval(function(){if(ws&&ws.readyState===WebSocket.OPEN)sendWS({action:'ping'});},25000);
-        window.addEventListener('beforeunload',function(){if(ws)ws.close();if(paymentCheckInterval)clearInterval(paymentCheckInterval);});
+        
+        // Если в URL параметр mode=multiplayer — открываем мультиплеер
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'multiplayer') {
+            $$('.tab-btn').forEach(x => x.classList.remove('active'));
+            const mpTab = document.querySelector('.tab-btn[data-tab="multiplayer"]');
+            if (mpTab) {
+                mpTab.classList.add('active');
+                $$('.tab-content').forEach(x => x.classList.remove('active'));
+                const tabMultiplayer = $('#tab-multiplayer');
+                if (tabMultiplayer) tabMultiplayer.classList.add('active');
+                connectWS();
+                switchMPTab('lobby');
+                setTimeout(() => { sendWS({ action: 'mp_get_rooms' }); }, 1000);
+            }
+        }
+
+        // Пинг WebSocket каждые 25 секунд
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWS({ action: 'ping' });
+            }
+        }, 25000);
+
+        // Очистка при закрытии
+        window.addEventListener('beforeunload', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close(1000, 'Page closing');
+            }
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+            }
+        });
+
+        // Показываем приветствие
+        try {
+            if (!localStorage.getItem('welcomeShown')) {
+                localStorage.setItem('welcomeShown', '1');
+                setTimeout(() => {
+                    showCenterBanner('👋 Добро пожаловать!<br><span style="font-size:14px;">Выберите ставку и нажмите на колесо</span>', 'win');
+                }, 1000);
+            }
+        } catch (e) {}
+
     </script>
 </body>
 </html>
