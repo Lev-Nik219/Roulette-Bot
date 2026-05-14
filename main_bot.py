@@ -808,7 +808,7 @@ def build_room_state(room_id: str, my_user_id: int = None) -> Dict:
     if not room: return {"type":"mp_state","players":[],"bank":0,"timer":0,"my_bet":0,"round_active":False}
     players_list = [{"user_id":uid,"nickname":p["nickname"],"bet":p["bet"],"color":p["color"],"avatar":p.get("avatar","🎲")} for uid,p in room["players"].items()]
     my_bet = room["players"][my_user_id]["bet"] if my_user_id and my_user_id in room["players"] else 0.0
-    return {"type":"mp_state","room_id":room_id,"players":players_list,"bank":room["bank"],"timer":room["timer"],"my_bet":my_bet,"round_active":room["status"]=="waiting"}
+    return {"type":"mp_state","room_id":room_id,"room_name":room.get("room_name","Комната"),"players":players_list,"bank":room["bank"],"timer":room["timer"],"my_bet":my_bet,"round_active":room["status"]=="waiting"}
 
 async def save_mp_room_to_db(room_id: str):
     room = mp_rooms.get(room_id)
@@ -900,13 +900,15 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                             ws_connections[user_id] = ws
                             await ws.send_json({"type":"connected","user_id":user_id})
                     elif action == "mp_get_rooms":
-                        rooms_list = [{"room_id":rid,"players_count":len(r["players"]),"bank":r["bank"],"timer":r["timer"]} for rid,r in mp_rooms.items() if r["status"]=="waiting"]
-                        await ws.send_json({"type":"mp_rooms_list","rooms":rooms_list})
                         rooms_list = [{
-                        "room_id":rid, "name": f"Комната #{rid[:6]}",
-                        "players_count":len(r["players"]), "bank":r["bank"], "timer":r["timer"],
-                        "top_bet": max(p["bet"] for p in r["players"].values()) if r["players"] else 0
-                    } for rid,r in mp_rooms.items() if r["status"]=="waiting"]
+                            "room_id": rid,
+                            "name": r.get("room_name", f"Комната #{rid[:6]}"),
+                            "players_count": len(r["players"]),
+                            "bank": r["bank"],
+                            "timer": r["timer"],
+                            "top_bet": max([p["bet"] for p in r["players"].values()]) if r["players"] else 0
+                        } for rid, r in mp_rooms.items() if r["status"] == "waiting"]
+                        await ws.send_json({"type":"mp_rooms_list","rooms":rooms_list})
                     elif action == "mp_create_room":
                         user_id = int(data.get("user_id", 0)); amount = float(data.get("amount", 0))
                         nickname = str(data.get("nickname", f"P{user_id}"))[:15]; avatar = data.get("avatar", "🎲")
@@ -919,7 +921,8 @@ async def handle_websocket(request: Request) -> web.WebSocketResponse:
                         if not user or user["balance"] < amount: await ws.send_json({"type":"error","message":"Недостаточно средств"}); continue
                         await update_balance(user_id, user["balance"] - amount)
                         room_id = secrets.token_hex(4).upper()
-                        mp_rooms[room_id] = {"players": {user_id: {"bet":amount,"nickname":nickname,"color":get_mp_color(0),"avatar":avatar}}, "bank": amount, "timer": config.MULTIPLAYER_JOIN_TIMEOUT, "status": "waiting", "timer_task": None, "round_start": time.time()}
+                        room_name = data.get("room_name", f"Комната #{user_id}")
+                        mp_rooms[room_id] = {"players": {user_id: {"bet":amount,"nickname":nickname,"color":get_mp_color(0),"avatar":avatar}}, "bank": amount, "timer": config.MULTIPLAYER_JOIN_TIMEOUT, "status": "waiting", "timer_task": None, "round_start": time.time(), "room_name": room_name}
                         current_room = room_id; user_active_rooms[user_id] = room_id
                         await save_mp_room_to_db(room_id)
                         mp_rooms[room_id]["timer_task"] = asyncio.create_task(mp_timer_task(room_id))
