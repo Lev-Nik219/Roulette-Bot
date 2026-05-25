@@ -125,11 +125,24 @@ class MPRoom:
 
     def get_state(self, my_user_id: int = None) -> Dict:
         my_bet = self.players[my_user_id].bet if my_user_id and my_user_id in self.players else 0.0
+        
+        # Список ID пользователей, которые сейчас онлайн в этой комнате
+        online_users = [
+            uid for uid in self.players 
+            if uid < 900000 and uid in ws_connections and not ws_connections[uid].closed
+        ]
+        
         return {
-            "type": "mp_state", "room_id": self.room_id, "room_name": self.room_name,
-            "players": self.get_players_list(), "bank": self.total_bank,
-            "timer": self.timer, "my_bet": my_bet,
-            "round_active": self.status == "waiting", "wheel": self.get_wheel_data(),
+            "type": "mp_state",
+            "room_id": self.room_id,
+            "room_name": self.room_name,
+            "players": self.get_players_list(),
+            "bank": self.total_bank,
+            "timer": self.timer,
+            "my_bet": my_bet,
+            "round_active": self.status == "waiting",
+            "wheel": self.get_wheel_data(),
+            "online_users": online_users,
         }
 
 
@@ -477,6 +490,7 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
     finally:
         if user_id and user_id in ws_connections:
             del ws_connections[user_id]
+    
         if current_room and user_id:
             room = rooms.get(current_room)
             if room and user_id in room.players and room.status == "waiting":
@@ -487,16 +501,20 @@ async def handle_ws(request: Request) -> web.WebSocketResponse:
                         await update_balance(user_id, user["balance"] + player.bet)
                 room.total_bank -= player.bet
                 del room.players[user_id]
+    
                 if user_id in user_rooms:
                     del user_rooms[user_id]
-                real = [uid for uid in room.players if uid < 900000]
-                if not real:
+    
+                real_players = [uid for uid in room.players if uid < 900000]
+                if not real_players:
                     if room.timer_task:
                         room.timer_task.cancel()
                     if current_room in rooms:
                         del rooms[current_room]
                 else:
+                    # Отправляем обновлённое состояние оставшимся — они увидят что игрок оффлайн
                     await broadcast_state(current_room)
+    
         logger.info(f"🔌 Disconnected: user={user_id}")
 
     return ws

@@ -1778,31 +1778,32 @@
         }
 
         function updateMPState(data) {
-            if (!mpMyRoom) mpMyRoom = data.room_id;
+    if (!mpMyRoom) mpMyRoom = data.room_id;
 
-            const roomId = $('#mpRoomId');
-            const roomName = $('#mpRoomName');
-            const roomBank = $('#mpRoomBank');
-            const roomTimer = $('#mpRoomTimer');
-            const raiseBtn = $('#mpRaiseBetBtn');
+    const roomId = $('#mpRoomId');
+    const roomName = $('#mpRoomName');
+    const roomBank = $('#mpRoomBank');
+    const roomTimer = $('#mpRoomTimer');
+    const raiseBtn = $('#mpRaiseBetBtn');
 
-            if (roomId) roomId.textContent = data.room_id || mpMyRoom;
-            if (roomName) roomName.textContent = data.room_name || 'Комната';
-            if (roomBank) roomBank.textContent = (data.bank || 0).toFixed(2);
-            if (roomTimer) roomTimer.textContent = data.timer || 0;
+    if (roomId) roomId.textContent = data.room_id || mpMyRoom;
+    if (roomName) roomName.textContent = data.room_name || 'Комната';
+    if (roomBank) roomBank.textContent = (data.bank || 0).toFixed(2);
+    if (roomTimer) roomTimer.textContent = data.timer || 0;
 
-            mpState.players = data.players || [];
-            mpState.bank = data.bank || 0;
-            mpState.timer = data.timer || 0;
-            mpState.myBet = data.my_bet || 0;
-            mpState.roundActive = data.round_active;
-            mpState.wheel = data.wheel || { sectors: [], bank: 0 };
+    mpState.players = data.players || [];
+    mpState.bank = data.bank || 0;
+    mpState.timer = data.timer || 0;
+    mpState.myBet = data.my_bet || 0;
+    mpState.roundActive = data.round_active;
+    mpState.wheel = data.wheel || { sectors: [], bank: 0 };
+    mpState.onlineUsers = data.online_users || [];
 
-            if (raiseBtn) raiseBtn.disabled = !mpState.roundActive;
+    if (raiseBtn) raiseBtn.disabled = !mpState.roundActive;
 
-            drawMPWheel();
-            renderMPLeaderboard();
-        }
+    drawMPWheel();
+    renderMPLeaderboard();
+}
 
         function startMPSpin(data) {
             animateMPWheel(data.winner_angle, data.total_rotation);
@@ -1909,18 +1910,26 @@
         function renderMPLeaderboard() {
             const lb = $('#mpLeaderboard');
             if (!lb) return;
-
+        
             if (!mpState.players.length) {
                 lb.innerHTML = '<div style="text-align:center;opacity:0.4;padding:12px;">Ожидание игроков...</div>';
                 return;
             }
-
+        
             const sorted = [...mpState.players].sort((a, b) => b.bet - a.bet);
             lb.innerHTML = sorted.map((p) => {
                 const pct = mpState.bank > 0 ? ((p.bet / mpState.bank) * 100).toFixed(1) : 0;
                 const isMe = p.user_id === user.id;
+                const isOnline = mpState.onlineUsers && mpState.onlineUsers.includes(p.user_id);
+                
+                // Зелёная точка для онлайна, серая для оффлайна
+                const onlineDot = isOnline 
+                    ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4CAF50;margin-right:6px;box-shadow:0 0 6px #4CAF50;"></span>' 
+                    : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px;"></span>';
+                
                 return '<div class="mp-player-row' + (isMe ? ' active-player' : '') + '">' +
                     '<div style="display:flex;align-items:center;">' +
+                    onlineDot +
                     '<img src="' + p.avatar + '" class="mp-player-avatar-img" style="border-color:' + (p.border || p.color) + '" onerror="this.style.display=\'none\'">' +
                     '<span class="mp-player-color-dot" style="background:' + p.color + '"></span>' +
                     (p.nickname || 'Игрок') + (isMe ? ' (вы)' : '') +
