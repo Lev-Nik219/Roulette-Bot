@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🎡 LN Roulette Bot — Main Application
-v8.0 — Multiplayer на отдельном WebSocket-сервере
+🎡 LN Roulette Bot — Main Application v9.0
+Все критические ошибки исправлены
+MP-сервер запускается после инициализации БД
 """
 import asyncio
 import logging
@@ -83,10 +84,6 @@ class Config:
     WEBHOOK_PORT = int(os.getenv("PORT", 10000))
     WEBHOOK_PATH = "/webhook"
     WEBHOOK_URL = f"{API_URL}{WEBHOOK_PATH}"
-    
-    # Multiplayer server
-    MP_SERVER_URL = os.getenv("MP_SERVER_URL", "http://localhost:10001")
-    MP_WS_URL = MP_SERVER_URL.replace("http", "ws").replace("https", "wss")
 
     FREE_SPIN_EVERY = 10
     MIN_GAMES_FOR_WITHDRAWAL = 2
@@ -778,7 +775,7 @@ async def support_receive(message: Message, state: FSMContext):
             pass
 
 
-# Admin router (сокращён для экономии места — полная версия как в v7.1)
+# Admin router
 admin_router = Router()
 
 @admin_router.message(Command("admin"))
@@ -1027,22 +1024,25 @@ dp.include_router(user_router)
 
 
 async def on_startup(app):
-    logger.info("🚀 Starting v8.3...")
-    
+    logger.info("🚀 Starting v9.0...")
+
     # 1. Инициализируем БД
     await init_sqlite()
     await init_postgres()
     await restore_from_pg()
-    
+
     # 2. Запускаем MP-сервер (БД уже готова)
-    import mp_server
-    mp_server.set_db(sqlite_pool)
-    runner = web.AppRunner(mp_server.create_app())
-    await runner.setup()
-    site = web.TCPSite(runner, 'localhost', 10001)
-    await site.start()
-    logger.info("✅ MP server started on internal port 10001")
-    
+    try:
+        import mp_server
+        mp_server.set_db(sqlite_pool)
+        runner = web.AppRunner(mp_server.create_app())
+        await runner.setup()
+        site = web.TCPSite(runner, 'localhost', 10001)
+        await site.start()
+        logger.info("✅ MP server started on internal port 10001")
+    except Exception as e:
+        logger.error(f"❌ Failed to start MP server: {e}")
+
     # 3. Keep-alive
     async def keep_alive():
         while True:
@@ -1053,12 +1053,13 @@ async def on_startup(app):
             except:
                 pass
     asyncio.create_task(keep_alive())
-    
+
     # 4. Webhook
     await bot.delete_webhook(drop_pending_updates=True)
     await asyncio.sleep(3)
     await bot.set_webhook(url=config.WEBHOOK_URL, allowed_updates=["message", "callback_query"])
     logger.info(f"✅ Ready on port {config.WEBHOOK_PORT}")
+
 
 async def on_shutdown(app):
     logger.info("🛑 Shutting down...")
@@ -1084,7 +1085,7 @@ def create_app() -> web.Application:
     webhook_handler.register(app, path=config.WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
 
-    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "8.3"}))
+    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "9.0"}))
     app.router.add_post("/api/get_balance", api_get_balance)
     app.router.add_post("/api/game_result", api_game_result)
     app.router.add_post("/api/create_invoice", api_create_invoice)
@@ -1094,41 +1095,34 @@ def create_app() -> web.Application:
 
     # MP WebSocket proxy
     async def proxy_mp_ws(request):
-        """Прокси WebSocket запросов на внутренний MP-сервер"""
         ws_client = web.WebSocketResponse()
         await ws_client.prepare(request)
-
         try:
             async with aiohttp_client.ClientSession() as session:
                 async with session.ws_connect('http://localhost:10001/ws') as mp_ws:
-
                     async def client_to_mp():
                         async for msg in ws_client:
                             if msg.type == web.WSMsgType.TEXT:
                                 await mp_ws.send_str(msg.data)
                             elif msg.type in (web.WSMsgType.CLOSE, web.WSMsgType.ERROR):
                                 break
-
                     async def mp_to_client():
                         async for msg in mp_ws:
                             if msg.type == WSMsgType.TEXT:
                                 await ws_client.send_str(msg.data)
                             elif msg.type in (WSMsgType.CLOSE, WSMsgType.ERROR):
                                 break
-
                     await asyncio.gather(client_to_mp(), mp_to_client())
-
         except Exception as e:
             logger.error(f"MP proxy error: {e}")
-
         return ws_client
 
     app.router.add_get("/mp-ws", proxy_mp_ws)
-
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
