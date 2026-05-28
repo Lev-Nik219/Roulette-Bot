@@ -684,19 +684,24 @@ def create_app() -> web.Application:
 
     @middleware
     async def cors_middleware(request: Request, handler):
+        # Для OPTIONS (preflight) запросов
         if request.method == "OPTIONS":
             resp = web.Response(status=204)
             resp.headers["Access-Control-Allow-Origin"] = "*"
-            resp.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
-            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            resp.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, PUT, DELETE"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
             resp.headers["Access-Control-Max-Age"] = "86400"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
             return resp
-        
+
+        # Для остальных запросов
         resp = await handler(request)
         resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
         return resp
 
     app.middlewares.append(cors_middleware)
+
     webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_handler.register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
