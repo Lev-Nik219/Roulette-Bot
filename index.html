@@ -968,30 +968,37 @@
         // ═══════════════════════════════════════
         // API ЗАПРОСЫ
         // ═══════════════════════════════════════
-        async function api(endpoint, data) {
-            data = data || {};
-            try {
-                const response = await fetch(API_URL + endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: user.id,
-                        ...data
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(function() { return {}; });
-                    throw new Error(errorData.error || 'HTTP ' + response.status);
-                }
-
-                return await response.json();
-            } catch (e) {
-                console.error('API error:', e);
-                toast('Ошибка: ' + e.message);
-                throw e;
+    async function api(endpoint, data) {
+        data = data || {};
+        console.log('API request:', endpoint, data);
+        try {
+            const response = await fetch(API_URL + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: user.id,
+                    ...data
+                })
+            });
+    
+            console.log('API response status:', response.status);
+    
+            const text = await response.text();
+            console.log('API response text:', text.substring(0, 200));
+    
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 100));
             }
+    
+            const result = JSON.parse(text);
+            console.log('API result:', result);
+            return result;
+        } catch (e) {
+            console.error('API error:', e);
+            toast('Ошибка: ' + e.message);
+            throw e;
         }
+    }
 
         async function loadUser() {
             try {
