@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🎡 LN Roulette Bot — Main Application v9.0
-Все критические ошибки исправлены
-MP-сервер запускается после инициализации БД
+🎡 LN Roulette Bot — Main Application v9.1
+Все критические ошибки исправлены:
+- CryptoPay: улучшенная обработка ошибок
+- Админка: исправлены все команды
+- БД: фильтрация мусорных пользователей
+- Поддержка: полный рабочий функционал
 """
 import asyncio
 import logging
@@ -113,6 +116,7 @@ async def get_balance_lock(user_id: int) -> asyncio.Lock:
 
 
 def is_valid_telegram_user(user_id) -> bool:
+    """Проверка валидности ID — ТОЛЬКО реальные Telegram ID (больше 100000)"""
     if isinstance(user_id, str):
         if user_id.startswith('guest_'):
             return False
@@ -120,7 +124,10 @@ def is_valid_telegram_user(user_id) -> bool:
             user_id = int(user_id)
         except (ValueError, TypeError):
             return False
-    return isinstance(user_id, int) and user_id > 0
+    if isinstance(user_id, int):
+        # Telegram user ID всегда больше 100000 (обычно 8-10 цифр)
+        return user_id > 100000
+    return False
 
 
 async def execute_pg(query: str, *args, fetch_one=False, fetch_all=False, fetch_val=False):
@@ -304,6 +311,7 @@ async def get_user(user_id: int) -> Optional[Dict]:
 
 async def create_user_if_not_exists(user_id: int, username: str = None) -> Optional[Dict]:
     if not is_valid_telegram_user(user_id):
+        logger.warning(f"❌ Attempt to create invalid user: {user_id}")
         return None
     user_id = int(user_id)
     user = await get_user(user_id)
@@ -509,6 +517,7 @@ async def api_game_result(request: Request) -> Response:
 
 
 async def api_create_invoice(request: Request) -> Response:
+    """Создание счёта на пополнение через CryptoPay API"""
     try:
         data = await request.json()
         user_id_raw = data.get("user_id", 0)
@@ -540,8 +549,15 @@ async def api_create_invoice(request: Request) -> Response:
             }
 
             try:
-                async with session.post(f"{config.CRYPTO_PAY_API}/createInvoice", json=payload, headers=headers, timeout=15) as resp:
-                    result = await resp.json()
+                async with session.post(
+                    f"{config.CRYPTO_PAY_API}/createInvoice",
+                    json=payload,
+                    headers=headers,
+                    timeout=30,
+                ) as resp:
+                    result_text = await resp.text()
+                    logger.info(f"CryptoPay response: {resp.status} - {result_text[:500]}")
+                    result = json.loads(result_text)
 
                 if result.get("ok"):
                     invoice = result["result"]
@@ -559,10 +575,16 @@ async def api_create_invoice(request: Request) -> Response:
                         "amount": amount,
                     })
                 else:
-                    return json_response({"success": False, "error": "CryptoPay API error"}, status=500)
+                    error_msg = str(result.get('error', 'Unknown error'))
+                    logger.error(f"CryptoPay API error: {error_msg}")
+                    return json_response({"success": False, "error": f"CryptoPay: {error_msg}"}, status=500)
+
             except aiohttp_client.ClientError as e:
-                logger.error(f"CryptoPay error: {e}")
+                logger.error(f"CryptoPay request error: {e}")
                 return json_response({"success": False, "error": "Payment service unavailable"}, status=500)
+            except json.JSONDecodeError as e:
+                logger.error(f"CryptoPay JSON error: {e}")
+                return json_response({"success": False, "error": "Invalid response from payment service"}, status=500)
 
     except Exception as e:
         logger.error(f"create_invoice: {e}")
@@ -588,8 +610,13 @@ async def api_check_payment(request: Request) -> Response:
         try:
             async with aiohttp_client.ClientSession() as session:
                 headers = {"Crypto-Pay-API-Token": config.CRYPTO_PAY_TOKEN}
-                async with session.get(f"{config.CRYPTO_PAY_API}/getInvoices?invoice_ids={payment_id}", headers=headers, timeout=10) as resp:
-                    result = await resp.json()
+                async with session.get(
+                    f"{config.CRYPTO_PAY_API}/getInvoices?invoice_ids={payment_id}",
+                    headers=headers,
+                    timeout=30,
+                ) as resp:
+                    result_text = await resp.text()
+                    result = json.loads(result_text)
 
             if result.get("ok") and result["result"]["items"]:
                 invoice = result["result"]["items"][0]
@@ -615,7 +642,7 @@ async def api_check_payment(request: Request) -> Response:
 async def api_crypto_callback(request: Request) -> Response:
     try:
         data = await request.json()
-        logger.info(f"📩 Crypto callback: {data}")
+        logger.info(f"📩 Crypto callback: {json.dumps(data)}")
         invoice_id = str(data.get("invoice_id", ""))
         status = data.get("status", "")
 
@@ -685,8 +712,8 @@ async def api_withdraw(request: Request) -> Response:
             for admin_id in config.ADMIN_IDS:
                 try:
                     await bot.send_message(admin_id, f"💸 *Запрос на вывод*\n👤 `{user_id}`\n💰 {amount:.2f}$\n📧 `{wallet}`", parse_mode=ParseMode.MARKDOWN)
-                except:
-                    pass
+                except Exception as e:
+                    logger.error(f"Failed to notify admin {admin_id}: {e}")
 
             logger.info(f"💸 Withdraw: user={user_id}, amount={amount}")
             return json_response({"success": True, "message": "Withdrawal submitted", "new_balance": new_balance})
@@ -733,57 +760,95 @@ def back_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="admin_back")]])
 
 
-# Support router
+# ═══════════════════════════════════════
+# SUPPORT ROUTER
+# ═══════════════════════════════════════
+
 support_router = Router()
+
 
 @support_router.message(Command("reply"))
 async def reply_command(message: Message):
+    """Ответ на сообщение поддержки"""
     if message.from_user.id not in config.ADMIN_IDS:
         await message.answer("❌ Нет доступа.")
         return
+
     parts = message.text.split(maxsplit=2)
     if len(parts) < 3:
-        await message.answer("❌ `/reply ID текст`", parse_mode=ParseMode.MARKDOWN)
+        await message.answer("❌ Использование: `/reply ID текст`", parse_mode=ParseMode.MARKDOWN)
         return
+
     try:
         target_id = int(parts[1])
         reply_text = parts[2]
-        await message.bot.send_message(target_id, f"📨 *Ответ администратора:*\n\n{reply_text}", parse_mode=ParseMode.MARKDOWN)
+
+        await message.bot.send_message(
+            target_id,
+            f"📨 *Ответ администратора:*\n\n{reply_text}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
         await sqlite_pool.execute("UPDATE support_messages SET is_read=1 WHERE user_id=?", (target_id,))
         await sqlite_pool.commit()
-        await message.answer(f"✅ Отправлено `{target_id}`", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"✅ Отправлено пользователю `{target_id}`", parse_mode=ParseMode.MARKDOWN)
+        logger.info(f"Reply from {message.from_user.id} to {target_id}")
     except ValueError:
         await message.answer("❌ ID должен быть числом.")
     except Exception as e:
-        await message.answer(f"❌ {e}")
+        await message.answer(f"❌ Ошибка: {e}")
 
 
 @support_router.message(F.text, ~F.text.startswith("/"))
 async def support_receive(message: Message, state: FSMContext):
-    if await state.get_state():
+    """Приём сообщений от пользователей"""
+    # Пропускаем если пользователь в FSM (админка)
+    current_state = await state.get_state()
+    if current_state is not None:
         return
+
     user_id = message.from_user.id
+    msg_text = message.text or ""
+
+    # Игнорируем сообщения от админов
     if user_id in config.ADMIN_IDS:
         return
-    await sqlite_pool.execute("INSERT INTO support_messages (user_id, message, created_at) VALUES (?,?,?)", (user_id, (message.text or "")[:500], int(time.time())))
+
+    await sqlite_pool.execute(
+        "INSERT INTO support_messages (user_id, message, created_at) VALUES (?,?,?)",
+        (user_id, msg_text[:500], int(time.time())),
+    )
     await sqlite_pool.commit()
-    await message.answer("✅ Сообщение отправлено!", reply_markup=get_main_keyboard(user_id))
+
+    await message.answer(
+        "✅ Ваше сообщение отправлено! Администратор ответит вам в ближайшее время.",
+        reply_markup=get_main_keyboard(user_id),
+    )
+
     for admin_id in config.ADMIN_IDS:
         try:
-            await message.bot.send_message(admin_id, f"📩 *Обращение*\n👤 `{user_id}`\n📝 {(message.text or '')[:200]}\n💡 `/reply {user_id} ответ`", parse_mode=ParseMode.MARKDOWN)
-        except:
-            pass
+            await message.bot.send_message(
+                admin_id,
+                f"📩 *Обращение*\n👤 `{user_id}`\n📝 {msg_text[:200]}\n💡 `/reply {user_id} ответ`",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
 
 
-# Admin router
+# ═══════════════════════════════════════
+# ADMIN ROUTER
+# ═══════════════════════════════════════
+
 admin_router = Router()
+
 
 @admin_router.message(Command("admin"))
 async def admin_panel(message: Message):
     if message.from_user.id not in config.ADMIN_IDS:
         await message.answer("❌ Доступ запрещён")
         return
-    await message.answer("👑 *Админ-панель*", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
+    await message.answer("👑 *Админ-панель*\nВыберите действие:", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
+
 
 @admin_router.callback_query(F.data == "admin_cancel")
 async def admin_cancel(callback: CallbackQuery, state: FSMContext):
@@ -794,6 +859,7 @@ async def admin_cancel(callback: CallbackQuery, state: FSMContext):
     except:
         pass
 
+
 @admin_router.callback_query(F.data == "admin_back")
 async def admin_back(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -803,22 +869,32 @@ async def admin_back(callback: CallbackQuery, state: FSMContext):
     except:
         pass
 
+
+# НАЧИСЛЕНИЕ
 @admin_router.callback_query(F.data == "admin_give")
 async def admin_give_start(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
+    if callback.from_user.id not in config.ADMIN_IDS:
+        return
     await state.set_state(AdminStates.waiting_for_add_user)
-    await callback.message.edit_text("💵 *Начисление*\nВведите ID:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+    await callback.message.edit_text("💵 *Начисление*\nВведите ID пользователя:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+
 
 @admin_router.message(AdminStates.waiting_for_add_user)
 async def admin_give_user(message: Message, state: FSMContext):
     try:
         target_id = int(message.text.strip())
+        if not is_valid_telegram_user(target_id):
+            await message.answer("❌ Некорректный ID. ID должен быть больше 100000.", reply_markup=cancel_keyboard())
+            return
     except ValueError:
         await message.answer("❌ Введите число:", reply_markup=cancel_keyboard())
         return
+
     await state.update_data(target_id=target_id)
     await state.set_state(AdminStates.waiting_for_add_amount)
-    await message.answer(f"💵 *Начисление*\n`{target_id}`\nСумма:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+    await message.answer(f"💵 *Начисление*\nПользователь: `{target_id}`\nВведите сумму:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+
 
 @admin_router.message(AdminStates.waiting_for_add_amount)
 async def admin_give_amount(message: Message, state: FSMContext):
@@ -827,43 +903,67 @@ async def admin_give_amount(message: Message, state: FSMContext):
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("❌ Положительное число:", reply_markup=cancel_keyboard())
+        await message.answer("❌ Введите положительное число:", reply_markup=cancel_keyboard())
         return
+
     data = await state.get_data()
     target_id = data["target_id"]
+
     user = await get_user(target_id)
     if not user:
         user = await create_user_if_not_exists(target_id)
+
+    if not user:
+        await message.answer("❌ Не удалось создать пользователя")
+        return
+
     lock = await get_balance_lock(target_id)
     async with lock:
         new_balance = user["balance"] + amount
         await update_balance(target_id, new_balance)
-    await sqlite_pool.execute("INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?,'deposit',?,'Admin',strftime('%s','now'))", (target_id, amount))
+
+    await sqlite_pool.execute(
+        "INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?,'deposit',?,'Admin deposit',strftime('%s','now'))",
+        (target_id, amount),
+    )
     await sqlite_pool.commit()
+
+    logger.info(f"💵 Admin {message.from_user.id} added {amount}$ to {target_id}")
     await state.clear()
-    await message.answer(f"✅ +{amount:.2f}$ → `{target_id}`\n💰 {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"✅ Начислено {amount:.2f}$ пользователю `{target_id}`\nНовый баланс: {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN)
     await message.answer("👑 *Админ-панель*", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
 
+
+# СПИСАНИЕ
 @admin_router.callback_query(F.data == "admin_take")
 async def admin_take_start(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
+    if callback.from_user.id not in config.ADMIN_IDS:
+        return
     await state.set_state(AdminStates.waiting_for_sub_user)
-    await callback.message.edit_text("💸 *Списание*\nВведите ID:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+    await callback.message.edit_text("💸 *Списание*\nВведите ID пользователя:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+
 
 @admin_router.message(AdminStates.waiting_for_sub_user)
 async def admin_take_user(message: Message, state: FSMContext):
     try:
         target_id = int(message.text.strip())
+        if not is_valid_telegram_user(target_id):
+            await message.answer("❌ Некорректный ID. ID должен быть больше 100000.", reply_markup=cancel_keyboard())
+            return
     except ValueError:
         await message.answer("❌ Введите число:", reply_markup=cancel_keyboard())
         return
+
     user = await get_user(target_id)
     if not user:
-        await message.answer("❌ Не найден", reply_markup=cancel_keyboard())
+        await message.answer("❌ Пользователь не найден", reply_markup=cancel_keyboard())
         return
+
     await state.update_data(target_id=target_id, current_balance=user["balance"])
     await state.set_state(AdminStates.waiting_for_sub_amount)
-    await message.answer(f"💸 *Списание*\n`{target_id}`\n💰 {user['balance']:.2f}$\nСумма:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+    await message.answer(f"💸 *Списание*\nПользователь: `{target_id}`\nБаланс: {user['balance']:.2f}$\nВведите сумму:", parse_mode=ParseMode.MARKDOWN, reply_markup=cancel_keyboard())
+
 
 @admin_router.message(AdminStates.waiting_for_sub_amount)
 async def admin_take_amount(message: Message, state: FSMContext):
@@ -872,41 +972,74 @@ async def admin_take_amount(message: Message, state: FSMContext):
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("❌ Положительное число:", reply_markup=cancel_keyboard())
+        await message.answer("❌ Введите положительное число:", reply_markup=cancel_keyboard())
         return
+
     data = await state.get_data()
     target_id = data["target_id"]
     cur = data["current_balance"]
+
     if amount > cur:
-        await message.answer(f"❌ Недостаточно. Баланс: {cur:.2f}$", reply_markup=cancel_keyboard())
+        await message.answer(f"❌ Недостаточно средств. Баланс: {cur:.2f}$", reply_markup=cancel_keyboard())
         return
+
     lock = await get_balance_lock(target_id)
     async with lock:
         new_balance = cur - amount
         await update_balance(target_id, new_balance)
-    await sqlite_pool.execute("INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?,'withdraw',?,'Admin',strftime('%s','now'))", (target_id, amount))
+
+    await sqlite_pool.execute(
+        "INSERT INTO transactions (user_id, type, amount, description, created_at) VALUES (?,'withdraw',?,'Admin withdraw',strftime('%s','now'))",
+        (target_id, amount),
+    )
     await sqlite_pool.commit()
+
+    logger.info(f"💸 Admin {message.from_user.id} removed {amount}$ from {target_id}")
     await state.clear()
-    await message.answer(f"✅ -{amount:.2f}$ у `{target_id}`\n💰 {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"✅ Списано {amount:.2f}$ у `{target_id}`\nНовый баланс: {new_balance:.2f}$", parse_mode=ParseMode.MARKDOWN)
     await message.answer("👑 *Админ-панель*", parse_mode=ParseMode.MARKDOWN, reply_markup=get_admin_keyboard())
 
+
+# СПИСОК ИГРОКОВ
 @admin_router.callback_query(F.data == "admin_list")
 async def admin_list(callback: CallbackQuery):
     await callback.answer()
-    cursor = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users")
-    total = (await cursor.fetchone())["cnt"] or 0
-    cursor = await sqlite_pool.execute("SELECT user_id, username, balance, total_games, wins FROM users ORDER BY balance DESC LIMIT 20")
-    players = await cursor.fetchall()
-    text = f"👥 *Игроки* ({total})\n\n"
-    for p in players:
-        nick = (p["username"] or str(p["user_id"]))[:20].replace('_', '\\_').replace('*', '\\*')
-        text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games'] or 0} | 🏆 {p['wins'] or 0}\n"
-    await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+    if callback.from_user.id not in config.ADMIN_IDS:
+        return
 
+    # Только реальные пользователи (ID > 100000)
+    cursor = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users WHERE user_id > 100000")
+    total = (await cursor.fetchone())["cnt"] or 0
+
+    cursor = await sqlite_pool.execute(
+        "SELECT user_id, username, balance, total_games, wins FROM users WHERE user_id > 100000 ORDER BY balance DESC LIMIT 20"
+    )
+    players = await cursor.fetchall()
+
+    if not players:
+        await callback.message.edit_text(f"👥 Нет игроков (всего: {total})", reply_markup=back_keyboard())
+        return
+
+    text = f"👥 *Игроки* (всего: {total})\n\n"
+    for p in players:
+        nick = (p["username"] or str(p["user_id"]))[:20]
+        nick = nick.replace('_', '\\_').replace('*', '\\*').replace('`', '\\`').replace('[', '\\[')
+        text += f"• `{p['user_id']}` — {nick}\n  💰 {p['balance']:.2f}$ | 🎮 {p['total_games'] or 0} | 🏆 {p['wins'] or 0}\n"
+
+    try:
+        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+    except Exception as e:
+        logger.error(f"admin_list error: {e}")
+
+
+# СТАТИСТИКА
 @admin_router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: CallbackQuery):
     await callback.answer()
-    c1 = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users")
+    if callback.from_user.id not in config.ADMIN_IDS:
+        return
+
+    c1 = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM users WHERE user_id > 100000")
     total_users = (await c1.fetchone())["cnt"] or 0
     c2 = await sqlite_pool.execute("SELECT COUNT(*) as cnt FROM game_history")
     total_games = (await c2.fetchone())["cnt"] or 0
@@ -914,40 +1047,76 @@ async def admin_stats(callback: CallbackQuery):
     total_bets = (await c3.fetchone())["t"] or 0
     c4 = await sqlite_pool.execute("SELECT COALESCE(SUM(win_amount),0) as t FROM game_history")
     total_wins = (await c4.fetchone())["t"] or 0
-    text = f"📊 *Статистика*\n\n👤 {total_users}\n🎮 {total_games}\n💵 Ставок: {total_bets:.2f}$\n🏆 Выигрышей: {total_wins:.2f}$\n📈 Профит: {(total_bets - total_wins):.2f}$"
+
+    text = f"📊 *Статистика*\n\n👤 Пользователей: {total_users}\n🎮 Игр: {total_games}\n💵 Ставок: {total_bets:.2f}$\n🏆 Выигрышей: {total_wins:.2f}$\n📈 Профит: {(total_bets - total_wins):.2f}$"
     await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
 
+
+# СООБЩЕНИЯ
 @admin_router.callback_query(F.data == "admin_messages")
 async def admin_messages(callback: CallbackQuery):
     await callback.answer()
-    cursor = await sqlite_pool.execute("SELECT user_id, message, created_at FROM support_messages WHERE is_read=0 ORDER BY created_at DESC LIMIT 15")
-    msgs = await cursor.fetchall()
-    if not msgs:
-        await callback.message.edit_text("📩 Нет новых", reply_markup=back_keyboard())
+    if callback.from_user.id not in config.ADMIN_IDS:
         return
-    text = "📩 *Сообщения:*\n\n"
+
+    cursor = await sqlite_pool.execute(
+        "SELECT user_id, message, created_at FROM support_messages WHERE is_read=0 ORDER BY created_at DESC LIMIT 15"
+    )
+    msgs = await cursor.fetchall()
+
+    if not msgs:
+        await callback.message.edit_text("📩 Нет новых сообщений", reply_markup=back_keyboard())
+        return
+
+    text = "📩 *Непрочитанные сообщения:*\n\n"
     for m in msgs:
         date_str = datetime.fromtimestamp(m["created_at"]).strftime('%d.%m %H:%M')
-        text += f"👤 `{m['user_id']}` | {date_str}\n{(m['message'] or '')[:100]}\n💡 `/reply {m['user_id']} ответ`\n\n"
-    await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+        msg_text = (m["message"] or "")[:100].replace('_', '\\_').replace('*', '\\*')
+        text += f"👤 `{m['user_id']}` | {date_str}\n{msg_text}\n💡 `/reply {m['user_id']} ответ`\n\n"
 
+    try:
+        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+    except Exception as e:
+        logger.error(f"admin_messages error: {e}")
+
+
+# ОЧИСТКА БД
 @admin_router.callback_query(F.data == "admin_clear_db")
 async def admin_clear_db(callback: CallbackQuery):
     await callback.answer()
+    if callback.from_user.id not in config.ADMIN_IDS:
+        return
+
     backup = f"database/backup_{int(time.time())}.db"
     try:
         shutil.copy2(config.SQLITE_DB_PATH, backup)
+
         for t in ["game_history", "multiplayer_players", "multiplayer_rooms", "transactions", "crypto_payments", "support_messages"]:
             await sqlite_pool.execute(f"DELETE FROM {t}")
-        await sqlite_pool.execute("UPDATE users SET total_games=0, wins=0, free_spins=0, games_since_withdrawal=0")
+
+        # Сбрасываем статистику только реальным пользователям
+        await sqlite_pool.execute("UPDATE users SET total_games=0, wins=0, free_spins=0, games_since_withdrawal=0 WHERE user_id > 100000")
+        # Удаляем мусорных пользователей (ID < 100000)
+        await sqlite_pool.execute("DELETE FROM users WHERE user_id <= 100000")
         await sqlite_pool.commit()
-        await callback.message.edit_text(f"✅ Очищено\n📦 `{backup}`", parse_mode=ParseMode.MARKDOWN, reply_markup=back_keyboard())
+
+        await callback.message.edit_text(
+            f"✅ База очищена\n📦 Бэкап: `{backup}`\n👥 Мусорные пользователи удалены",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_keyboard(),
+        )
+        logger.info(f"DB cleared, backup: {backup}")
     except Exception as e:
-        await callback.answer(f"❌ {e}")
+        logger.error(f"DB clear error: {e}")
+        await callback.message.edit_text(f"❌ Ошибка очистки: {e}", reply_markup=back_keyboard())
 
 
-# User router
+# ═══════════════════════════════════════
+# USER ROUTER
+# ═══════════════════════════════════════
+
 user_router = Router()
+
 
 @user_router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
@@ -955,35 +1124,54 @@ async def cmd_start(message: Message, state: FSMContext):
     user_id = message.from_user.id
     username = message.from_user.username or ''
     full_name = message.from_user.full_name
+
     user = await create_user_if_not_exists(user_id, username)
+
     if not user:
-        await message.answer("❌ Ошибка")
+        await message.answer("❌ Ошибка создания профиля. Попробуйте позже.")
         return
-    text = f"🎡 *Добро пожаловать, {full_name}!*\n\n🆔 `{user_id}`\n💰 {user['balance']:.2f}$\n🎁 Спинов: {user['free_spins']}\n\n🎯 Одиночная\n👥 Мультиплеер\n💎 ×36!"
+
+    text = (
+        f"🎡 *Добро пожаловать, {full_name}!*\n\n"
+        f"🆔 `{user_id}`\n💰 {user['balance']:.2f}$\n🎁 Спинов: {user['free_spins']}\n\n"
+        f"🎯 Одиночная рулетка\n👥 Мультиплеер\n💎 ×36 от ставки!"
+    )
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 Пополнить", callback_data="deposit_info"), InlineKeyboardButton(text="💸 Вывести", callback_data="withdraw_info")],
         [InlineKeyboardButton(text="💰 Баланс", callback_data="check_balance"), InlineKeyboardButton(text="📩 Поддержка", callback_data="support_info")],
     ])
+
     await message.answer(text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
-    await message.answer("🎡 Играть:", reply_markup=get_main_keyboard(user_id))
+    await message.answer("🎡 Нажмите кнопку ниже чтобы играть:", reply_markup=get_main_keyboard(user_id))
+
 
 @user_router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext):
-    if await state.get_state():
+    current_state = await state.get_state()
+    if current_state:
         await state.clear()
-        await message.answer("❌ Отменено", reply_markup=get_main_keyboard(message.from_user.id))
+        await message.answer("❌ Действие отменено", reply_markup=get_main_keyboard(message.from_user.id))
     else:
         await message.answer("Нет активных действий.")
+
 
 @user_router.message(Command("myid"))
 async def cmd_myid(message: Message):
     await message.answer(f"🆔 `{message.from_user.id}`\n👤 @{message.from_user.username or 'нет'}", parse_mode=ParseMode.MARKDOWN)
 
+
 @user_router.callback_query(F.data == "deposit_info")
 async def deposit_info(callback: CallbackQuery):
     await callback.answer()
-    await callback.message.answer("💳 *Пополнение*\nMini App → Профиль → Пополнить", parse_mode=ParseMode.MARKDOWN,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎡 Открыть", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single&user_id={callback.from_user.id}"))]]))
+    await callback.message.answer(
+        "💳 *Пополнение*\n\nОткройте Mini App → Профиль → Пополнить\nИли нажмите кнопку ниже:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🎡 Открыть Mini App", web_app=WebAppInfo(url=f"{config.FRONTEND_URL}?mode=single&user_id={callback.from_user.id}"))]
+        ]),
+    )
+
 
 @user_router.callback_query(F.data == "withdraw_info")
 async def withdraw_info(callback: CallbackQuery):
@@ -991,11 +1179,17 @@ async def withdraw_info(callback: CallbackQuery):
     user = await get_user(callback.from_user.id)
     if not user:
         user = await create_user_if_not_exists(callback.from_user.id)
+
+    if not user:
+        await callback.answer("❌ Ошибка")
+        return
+
     need = max(0, config.MIN_GAMES_FOR_WITHDRAWAL - user.get("games_since_withdrawal", 0))
     if need > 0:
         await callback.message.answer(f"💸 *Вывод*\n⚠️ Сыграйте ещё {need} игр\n💰 {user['balance']:.2f}$", parse_mode=ParseMode.MARKDOWN)
     else:
-        await callback.message.answer(f"💸 *Вывод*\n✅ Доступен!\n💰 {user['balance']:.2f}$", parse_mode=ParseMode.MARKDOWN)
+        await callback.message.answer(f"💸 *Вывод*\n✅ Доступен!\n💰 {user['balance']:.2f}$\nОткройте Mini App → Профиль → Вывести", parse_mode=ParseMode.MARKDOWN)
+
 
 @user_router.callback_query(F.data == "check_balance")
 async def check_balance(callback: CallbackQuery):
@@ -1006,10 +1200,14 @@ async def check_balance(callback: CallbackQuery):
     if user:
         await callback.message.answer(f"💰 {user['balance']:.2f}$ | 🎁 {user['free_spins']} спинов | 🎮 {user['total_games']} игр | 🏆 {user['wins']} побед")
 
+
 @user_router.callback_query(F.data == "support_info")
 async def support_info(callback: CallbackQuery):
     await callback.answer()
-    await callback.message.answer("📩 *Поддержка*\nНапишите сообщение сюда.\nОтмена: /cancel", parse_mode=ParseMode.MARKDOWN)
+    await callback.message.answer(
+        "📩 *Поддержка*\n\nПросто напишите ваше сообщение прямо сюда, и администратор ответит вам.\n\nДля отмены: /cancel",
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 # ═══════════════════════════════════════
@@ -1024,14 +1222,22 @@ dp.include_router(user_router)
 
 
 async def on_startup(app):
-    logger.info("🚀 Starting v9.0...")
+    logger.info("🚀 Starting v9.1...")
 
     # 1. Инициализируем БД
     await init_sqlite()
     await init_postgres()
     await restore_from_pg()
 
-    # 2. Запускаем MP-сервер (БД уже готова)
+    # Очищаем мусорных пользователей при старте
+    try:
+        await sqlite_pool.execute("DELETE FROM users WHERE user_id <= 100000")
+        await sqlite_pool.commit()
+        logger.info("🧹 Cleaned up garbage users")
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+
+    # 2. Запускаем MP-сервер
     try:
         import mp_server
         mp_server.set_db(sqlite_pool)
@@ -1085,7 +1291,7 @@ def create_app() -> web.Application:
     webhook_handler.register(app, path=config.WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
 
-    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "9.0"}))
+    app.router.add_get("/health", lambda r: web.json_response({"status": "ok", "version": "9.1"}))
     app.router.add_post("/api/get_balance", api_get_balance)
     app.router.add_post("/api/game_result", api_game_result)
     app.router.add_post("/api/create_invoice", api_create_invoice)
